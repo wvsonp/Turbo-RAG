@@ -1,5 +1,6 @@
-Create new project in GCP
+## Create new project in GCP
 
+`
 gcloud services enable \
   container.googleapis.com \
   sqladmin.googleapis.com \
@@ -9,3 +10,4 @@ gcloud services enable \
   storage.googleapis.com \
   aiplatform.googleapis.com \
   --project=turbo-rag
+  `

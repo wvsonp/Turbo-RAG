@@ -19,6 +19,18 @@ variable "cluster_name" {
   default     = null
 }
 
+variable "node_disk_size_gb" {
+  type        = number
+  description = "Boot disk size (GB) per node; keep low in dev to stay under regional SSD_TOTAL_GB quota"
+  default     = 50
+}
+
+variable "deletion_protection" {
+  type        = bool
+  description = "Block accidental cluster delete; set false before terraform destroy"
+  default     = false
+}
+
 locals {
   cluster_name = coalesce(var.cluster_name, "rag-platform-${var.environment}")
 }

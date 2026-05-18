@@ -10,6 +10,44 @@ What we did so far, in order (logic over detail):
 6. **Repo layout** — `infra/` with `backend.tf`, provider, `environments/dev|prod.tfvars`, and empty module folders (`gke`, `cloudsql`, `artifact_registry`, `pubsub`, `secret_manager`, `iam`). Phase 1.2 scaffold before wiring real resources.
 7. `**terraform init`** — connected to the GCS backend (`terraform/state` prefix).
 8. `**terraform validate` and `plan**` — against `dev.tfvars`; scaffold only, no `terraform apply` yet.
+9. **Phase 1.2b network (dev)** — `infra/modules/network/` applied: custom VPC, VPC-native subnet, PSA, Cloud NAT, baseline firewalls. GKE module wired to use this VPC (apply GKE separately in 1.3).
+
+## CIDR plan (per environment VPC)
+
+| Range | CIDR | Use |
+| ----- | ---- | --- |
+| Nodes (primary subnet) | `10.0.0.0/20` | GKE node IPs |
+| Pods (secondary) | `10.4.0.0/14` | VPC-native pod alias IPs |
+| Services (secondary) | `10.8.0.0/20` | ClusterIP services |
+| PSA (global peering) | `10.16.0.0/16` | Cloud SQL private IP |
+| Master (GKE) | `172.16.0.0/28` | Private cluster control plane CIDR |
+
+See also [`infra/modules/network/README.md`](../../infra/modules/network/README.md).
+
+## Network apply (dev)
+
+**Why:** Private Cloud SQL and VPC-native GKE require PSA and a dedicated VPC before data-plane services.
+
+Enable APIs if PSA apply fails (see `docs/FAILURES.md`):
+
+```bash
+gcloud services enable servicenetworking.googleapis.com compute.googleapis.com --project=turbo-rag
+```
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform plan -var-file=environments/dev.tfvars -target=module.network
+terraform apply -var-file=environments/dev.tfvars -target=module.network
+```
+
+Verify:
+
+```bash
+gcloud compute networks list --project=turbo-rag
+gcloud compute addresses list --global --filter="purpose=VPC_PEERING" --project=turbo-rag
+```
+
+**Destroy order:** GKE → Cloud SQL → PSA connection → NAT → router → firewalls → subnet → PSA address → VPC.
 
 ## Create new project in GCP
 
@@ -18,6 +56,8 @@ activate the apis
 ```bash
 gcloud services enable \
   container.googleapis.com \
+  compute.googleapis.com \
+  servicenetworking.googleapis.com \
   sqladmin.googleapis.com \
   pubsub.googleapis.com \
   artifactregistry.googleapis.com \

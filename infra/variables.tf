@@ -13,3 +13,9 @@ variable "environment" {
   type        = string
   description = "Environment name (dev, prod)"
 }
+
+variable "network_enable_flow_logs" {
+  type        = bool
+  description = "Enable VPC flow logs on the GKE subnet (recommended for prod)"
+  default     = false
+}

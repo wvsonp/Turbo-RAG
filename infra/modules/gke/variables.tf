@@ -31,6 +31,32 @@ variable "deletion_protection" {
   default     = false
 }
 
+variable "network" {
+  type        = string
+  description = "VPC network name for the cluster"
+}
+
+variable "subnetwork" {
+  type        = string
+  description = "Regional subnet name for nodes"
+}
+
+variable "pods_secondary_range" {
+  type        = string
+  description = "Subnet secondary range name for pod alias IPs"
+}
+
+variable "services_secondary_range" {
+  type        = string
+  description = "Subnet secondary range name for ClusterIP services"
+}
+
+variable "master_ipv4_cidr_block" {
+  type        = string
+  description = "RFC 1918 /28 for private cluster control plane (required with private nodes)"
+  default     = "172.16.0.0/28"
+}
+
 locals {
   cluster_name = coalesce(var.cluster_name, "rag-platform-${var.environment}")
 }

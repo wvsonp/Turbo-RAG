@@ -30,3 +30,18 @@ output "gke_workload_identity_pool" {
   description = "Workload Identity pool for pod-to-GCP auth bindings"
   value       = module.gke.workload_identity_pool
 }
+
+output "network_name" {
+  description = "VPC network name"
+  value       = module.network.network_name
+}
+
+output "network_subnet_name" {
+  description = "GKE regional subnet name"
+  value       = module.network.subnet_name
+}
+
+output "network_psa_range" {
+  description = "CIDR reserved for Private Service Access (Cloud SQL)"
+  value       = module.network.psa_allocated_range
+}

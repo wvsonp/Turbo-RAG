@@ -1,1 +1,7 @@
-# Phase 1.2: scaffold only. Module calls come in 1.3+.
+module "gke" {
+  source = "./modules/gke"
+
+  project_id  = var.project_id
+  region      = var.region
+  environment = var.environment
+}

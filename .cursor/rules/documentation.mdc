@@ -1,0 +1,69 @@
+---
+description: Formats and file map for STATUS, README, history, lessons, and failures
+alwaysApply: false
+---
+
+# Documentation reference
+
+Use this when writing or updating project docs. **When** to update is defined in `task-lifecycle.mdc` and `log-failure.mdc`.
+
+## Doc roles
+
+| Doc | Audience | Content |
+|-----|----------|---------|
+| `docs/STATUS.md` | Agents | Living task board: completed, in progress, blocked |
+| `README.md` | Visitors / you | High-level phase progress (tables, next steps) |
+| `docs/history/<component>.md` | Learning | Per-area steps, why, working commands |
+| `docs/history/lessons.md` | Learning | Wisdom and gotchas accumulated over time |
+| `docs/FAILURES.md` | Debugging | Full failure post-mortems |
+| `docs/project-roadmap.md` | Planning | Phase definitions — do not edit unless user asks |
+
+## File map (`docs/history/`)
+
+| Area | File |
+|------|------|
+| Bootstrap, APIs, remote state | `docs/history/IaC.md` |
+| `infra/modules/gke/` | `docs/history/gke.md` |
+| Other `infra/modules/<name>/` | `docs/history/<name>.md` |
+| `services/<name>/`, `helm/<chart>/` | `docs/history/<name>.md` |
+| Short gotchas and experience | `docs/history/lessons.md` |
+
+## History entry format (`docs/history/<component>.md`)
+
+Append a dated section when a meaningful sub-task completes:
+
+```markdown
+## YYYY-MM-DD — Short title (e.g. 1.3 GKE dev apply)
+
+**What:** One or two sentences on what was done.
+
+**Why:** Why this step mattered for the platform or learning.
+
+**Commands:**
+```bash
+# copy-paste commands that actually worked
+```
+```
+
+Keep numbered **History** sections if the file already uses that style; extend consistently.
+
+## Lessons format (`docs/history/lessons.md`)
+
+For reusable experience (security, provider quirks, non-obvious behavior) — not full failure write-ups:
+
+```markdown
+## Area — short topic
+
+> **Note:** One or two sentences. Call out risk or follow-up if relevant.
+```
+
+Skip routine fixes and facts obvious from the code. Do not duplicate an existing section — extend it.
+
+## Failure format (`docs/FAILURES.md`)
+
+See `log-failure.mdc` for the required template.
+
+## README vs STATUS
+
+- **STATUS** — precise agent state (bullets, blockers, current step)
+- **README** — same progress in table form for a quick public read; update on sub-phase step completion (1.3, 1.4, …), not every tiny commit

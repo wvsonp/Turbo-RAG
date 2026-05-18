@@ -1,0 +1,30 @@
+---
+description: Log failures and lessons to FAILURES.md immediately when something breaks
+alwaysApply: true
+---
+
+# Failure logging protocol
+
+Whenever something breaks, a command fails, or an approach doesn't work:
+
+1. Stop and immediately log it to `docs/FAILURES.md` before trying the fix
+2. Use this format:
+
+```markdown
+## [Phase X] Short descriptive title
+**Date:** YYYY-MM-DD
+**What happened:** One sentence — what failed and why
+**Symptoms:** The exact error or unexpected behavior
+**What was tried:** List approaches that did NOT work
+**Fix:** What actually resolved it
+**Rule added:** If a new Cursor rule was created as a result, name it here
+```
+
+3. If the fix is a reusable gotcha worth keeping as experience (not a full post-mortem), add or extend `docs/history/lessons.md` per `documentation.mdc`.
+4. If the same mistake may repeat, follow `self-improvement.mdc` and add a `.cursor/rules/<topic>.mdc` file.
+
+**`docs/FAILURES.md`** — detailed breakdowns of what broke, what was tried, and the fix.
+
+**`docs/history/lessons.md`** — accumulated wisdom and gotchas learned over time (not a duplicate failure log).
+
+Never skip logging — repeated failures without documentation waste time and context.

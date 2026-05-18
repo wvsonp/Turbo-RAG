@@ -1,0 +1,23 @@
+---
+description: When the agent repeats a mistake, write a rule — not a new prompt
+alwaysApply: true
+---
+
+# Persistent mistakes → new rules
+
+If the user corrects the same mistake more than once in a session, or if a correction was already logged in `docs/FAILURES.md`, do NOT wait for another correction.
+
+Instead:
+
+1. Acknowledge the pattern explicitly: "This has been corrected before — I'll create a rule."
+2. Create a new `.cursor/rules/<topic>.mdc` file that encodes the correct behavior
+3. Reference that rule file in your next response so the user can verify it
+
+**Examples of when to write a rule, not a prompt:**
+
+- Hardcoding values instead of using Terraform variables → `.cursor/rules/terraform.mdc`
+- Missing liveness/readiness probes in Helm charts → `.cursor/rules/helm.mdc`
+- Writing secrets to K8s Secret objects instead of Secret Manager CSI → `.cursor/rules/security.mdc`
+- Deploying Qdrant as a Deployment instead of StatefulSet → `.cursor/rules/statefulsets.mdc`
+
+A rule that lives in the repo outlasts any conversation. Prefer rules over reminders.

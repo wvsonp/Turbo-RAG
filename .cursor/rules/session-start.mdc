@@ -1,0 +1,23 @@
+---
+description: Load project context at the start of every new session
+alwaysApply: true
+---
+
+# Session start
+
+At the beginning of a new session, before writing code or making changes:
+
+1. Read `docs/STATUS.md` — current phase, completed work, in progress, blockers
+2. Skim `docs/project-roadmap.md` only when the task needs roadmap detail (stack, phase steps, conventions)
+
+Briefly confirm:
+
+- Current phase and last completed item
+- What is in progress
+- Anything blocked
+
+Do not start implementation until `docs/STATUS.md` has been read.
+
+If `docs/STATUS.md` is missing or clearly stale, ask the user to confirm state before proceeding.
+
+For `docs/history/` format and file map, see `documentation.mdc` when documenting completed work.

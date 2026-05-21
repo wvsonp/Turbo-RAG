@@ -11,7 +11,7 @@
 - **1.1 GCP bootstrap** — Project `turbo-rag`, APIs enabled, state bucket `gs://rag-platform-tf-state`, bootstrap SA, local `gcloud` + Terraform
 - **1.2 Terraform layout** — `infra/` scaffold, `terraform init`, validate + plan (dev)
 - **1.2b Network** — `infra/modules/network/` applied in dev: VPC `rag-platform-dev`, VPC-native subnet, PSA `10.16.0.0/16`, Cloud NAT, firewalls; GKE wired to custom VPC ([plan](plan/phase-1-foundation/1.2b-network-foundation.md), [`docs/history/IaC.md`](history/IaC.md))
-- **1.3 GKE** — Standard dev cluster applied on custom VPC with VPC-native networking, private nodes, Workload Identity, and three node pools (see `docs/history/gke.md`)
+- **1.3 GKE** — Standard dev cluster applied and validated on custom VPC with VPC-native networking, private nodes, Workload Identity, and Ready system/application nodes (see `docs/history/gke.md`)
 
 ## In progress
 

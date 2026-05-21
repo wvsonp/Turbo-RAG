@@ -50,6 +50,8 @@ resource "google_container_node_pool" "application" {
   name     = "application"
   location = var.region
   cluster  = google_container_cluster.primary.name
+  
+  initial_node_count = 1
 
   autoscaling {
     total_min_node_count = 1

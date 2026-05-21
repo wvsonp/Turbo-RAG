@@ -5,3 +5,27 @@
 **What was tried:** Targeted apply without pre-checking API enablement
 **Fix:** `gcloud services enable servicenetworking.googleapis.com --project=turbo-rag`, then re-run `terraform apply -target=module.network`
 **Rule added:** _(none)_
+
+## [Phase 1] GKE validation — kubectl missing locally
+**Date:** 2026-05-21
+**What happened:** GKE apply completed, but local cluster validation could not run because `kubectl` was not installed in the WSL environment.
+**Symptoms:** `'kubectl' not found`
+**What was tried:** Running `kubectl get nodes` before installing the Kubernetes CLI
+**Fix:** Install `kubectl`, fetch GKE credentials, then rerun `kubectl get nodes`.
+**Rule added:** _(none)_
+
+## [Phase 1] GKE validation — GKE auth plugin missing locally
+**Date:** 2026-05-21
+**What happened:** `kubectl` was installed, but it could not authenticate to GKE because the required `gke-gcloud-auth-plugin` binary was missing locally.
+**Symptoms:** `Unable to connect to the server: getting credentials: exec: executable gke-gcloud-auth-plugin not found`
+**What was tried:** Running `kubectl get nodes` after fetching GKE credentials without installing the GKE auth plugin.
+**Fix:** Install `google-cloud-cli-gke-gcloud-auth-plugin`, then rerun `gcloud container clusters get-credentials` and `kubectl get nodes`.
+**Rule added:** _(none)_
+
+## [Phase 1] GKE validation — application pool has no VM
+**Date:** 2026-05-21
+**What happened:** The GKE application node pool reports `RUNNING` with `totalMinNodeCount: 1`, but no matching Compute Engine VM is listed and no application node appears in `kubectl get nodes`.
+**Symptoms:** `gcloud compute instances list --filter='name~gke-rag-platform-dev-application'` returned `Listed 0 items.`
+**What was tried:** Verified node pool existence with `gcloud container node-pools list` and described the application pool.
+**Fix:** Added `initial_node_count = 1` to the application node pool and re-applied; `kubectl get nodes -L cloud.google.com/gke-nodepool` showed application nodes as `Ready`.
+**Rule added:** _(none)_

@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Platform on GCP — MLOps Project Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<style>
+:root,[data-theme="light"]{
+  --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
+  --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
+  --color-divider:#dcd9d5;--color-border:#d4d1ca;
+  --color-text:#28251d;--color-text-muted:#7a7974;--color-text-faint:#bab9b4;
+  --color-primary:#01696f;--color-primary-hover:#0c4e54;
+  --color-primary-highlight:#cedcd8;
+  --color-success:#437a22;--color-success-highlight:#d4dfcc;
+  --color-gold:#d19900;--color-gold-highlight:#e9e0c6;
+  --color-blue:#006494;--color-blue-highlight:#c6d8e4;
+  --color-purple:#7a39bb;--color-purple-highlight:#dacfde;
+  --color-orange:#da7101;--color-orange-highlight:#e7d7c4;
+  --color-error:#a12c7b;--color-error-highlight:#e0ced7;
+  --color-notification:#a13544;--color-notification-highlight:#dececb;
+  --shadow-sm:0 1px 2px oklch(0.2 0.01 80/0.06);
+  --shadow-md:0 4px 12px oklch(0.2 0.01 80/0.08);
+  --shadow-lg:0 12px 32px oklch(0.2 0.01 80/0.12);
+  --radius-sm:0.375rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-xl:1rem;--radius-full:9999px;
+  --text-xs:clamp(0.75rem,0.7rem + 0.25vw,0.875rem);
+  --text-sm:clamp(0.875rem,0.8rem + 0.35vw,1rem);
+  --text-base:clamp(1rem,0.95rem + 0.25vw,1.125rem);
+  --text-lg:clamp(1.125rem,1rem + 0.75vw,1.5rem);
+  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --transition-interactive:180ms cubic-bezier(0.16,1,0.3,1);
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+[data-theme="dark"]{
+  --color-bg:#0e0f10;--color-surface:#141518;--color-surface-2:#1a1c20;
+  --color-surface-offset:#1d1f23;--color-surface-dynamic:#252830;
+  --color-divider:#262a32;--color-border:#2e3340;
+  --color-text:#d4d8e0;--color-text-muted:#727880;--color-text-faint:#4a5060;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-highlight:#1e3035;
+  --color-success:#6daa45;--color-success-highlight:#1e2e14;
+  --color-gold:#e8af34;--color-gold-highlight:#2a2210;
+  --color-blue:#5591c7;--color-blue-highlight:#0e1f30;
+  --color-purple:#a86fdf;--color-purple-highlight:#1e1030;
+  --color-orange:#fdab43;--color-orange-highlight:#261a08;
+  --color-error:#d163a7;--color-error-highlight:#280a1a;
+  --color-notification:#dd6974;--color-notification-highlight:#280a0e;
+  --shadow-sm:0 1px 2px oklch(0 0 0/0.3);
+  --shadow-md:0 4px 12px oklch(0 0 0/0.4);
+  --shadow-lg:0 12px 32px oklch(0 0 0/0.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;}
+body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.6;}
+a,button,[role="button"]{transition:color var(--transition-interactive),background var(--transition-interactive),border-color var(--transition-interactive),box-shadow var(--transition-interactive);}
+button{cursor:pointer;background:none;border:none;}
+
+/* Layout */
+.header{position:sticky;top:0;z-index:50;background:color-mix(in oklch,var(--color-bg) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.logo{display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:var(--text-sm);color:var(--color-text);text-decoration:none;}
+.logo svg{color:var(--color-primary);}
+.header-nav{display:flex;align-items:center;gap:.25rem;}
+.header-nav a{font-size:var(--text-xs);color:var(--color-text-muted);text-decoration:none;padding:.35rem .6rem;border-radius:var(--radius-sm);}
+.header-nav a:hover{color:var(--color-text);background:var(--color-surface-offset);}
+.theme-toggle{padding:.4rem;border-radius:var(--radius-sm);color:var(--color-text-muted);display:flex;align-items:center;}
+.theme-toggle:hover{background:var(--color-surface-offset);color:var(--color-text);}
+
+.main{max-width:1100px;margin-inline:auto;padding:2rem 1.5rem 4rem;}
+
+/* Hero */
+.hero{padding:3rem 0 2.5rem;border-bottom:1px solid var(--color-border);margin-bottom:2.5rem;}
+.hero-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:var(--text-xs);font-family:var(--font-mono);color:var(--color-primary);background:var(--color-primary-highlight);border:1px solid color-mix(in oklch,var(--color-primary) 20%,transparent);padding:.3rem .7rem;border-radius:var(--radius-full);margin-bottom:1rem;}
+.hero h1{font-size:var(--text-xl);font-weight:700;line-height:1.15;margin-bottom:.75rem;max-width:700px;}
+.hero p{color:var(--color-text-muted);max-width:600px;margin-bottom:1.5rem;}
+.hero-stats{display:flex;gap:2rem;flex-wrap:wrap;}
+.stat{display:flex;flex-direction:column;gap:.15rem;}
+.stat-value{font-size:var(--text-lg);font-weight:700;color:var(--color-primary);font-family:var(--font-mono);}
+.stat-label{font-size:var(--text-xs);color:var(--color-text-muted);}
+
+/* Section titles */
+.section{margin-bottom:3rem;}
+.section-header{display:flex;align-items:flex-start;gap:.75rem;margin-bottom:1.25rem;}
+.section-num{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-primary);background:var(--color-primary-highlight);padding:.2rem .5rem;border-radius:var(--radius-sm);margin-top:.15rem;flex-shrink:0;}
+.section-title{font-size:var(--text-lg);font-weight:700;}
+.section-desc{color:var(--color-text-muted);font-size:var(--text-sm);margin-top:.25rem;}
+
+/* Architecture diagram */
+.arch-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--color-border);border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1rem;}
+.arch-cell{background:var(--color-surface);padding:1rem;display:flex;flex-direction:column;gap:.4rem;}
+.arch-cell.wide{grid-column:span 3;}
+.arch-cell.two{grid-column:span 2;}
+.arch-cell-label{font-size:var(--text-xs);font-family:var(--font-mono);font-weight:500;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.06em;}
+.arch-cell-title{font-size:var(--text-sm);font-weight:600;color:var(--color-text);}
+.arch-cell-items{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem;}
+.tag{font-size:var(--text-xs);font-family:var(--font-mono);padding:.2rem .5rem;border-radius:var(--radius-sm);font-weight:500;white-space:nowrap;}
+.tag-primary{background:var(--color-primary-highlight);color:var(--color-primary);}
+.tag-gold{background:var(--color-gold-highlight);color:var(--color-gold);}
+.tag-blue{background:var(--color-blue-highlight);color:var(--color-blue);}
+.tag-purple{background:var(--color-purple-highlight);color:var(--color-purple);}
+.tag-green{background:var(--color-success-highlight);color:var(--color-success);}
+.tag-orange{background:var(--color-orange-highlight);color:var(--color-orange);}
+.tag-red{background:var(--color-notification-highlight);color:var(--color-notification);}
+.tag-pink{background:var(--color-error-highlight);color:var(--color-error);}
+.tag-neutral{background:var(--color-surface-offset);color:var(--color-text-muted);}
+
+/* Phase cards */
+.phases{display:flex;flex-direction:column;gap:1rem;}
+.phase-card{border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+.phase-header{display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;background:var(--color-surface);cursor:pointer;user-select:none;}
+.phase-header:hover{background:var(--color-surface-offset);}
+.phase-icon{width:36px;height:36px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--text-sm);font-family:var(--font-mono);flex-shrink:0;}
+.phase-icon.p1{background:var(--color-primary-highlight);color:var(--color-primary);}
+.phase-icon.p2{background:var(--color-blue-highlight);color:var(--color-blue);}
+.phase-icon.p3{background:var(--color-purple-highlight);color:var(--color-purple);}
+.phase-icon.p4{background:var(--color-gold-highlight);color:var(--color-gold);}
+.phase-icon.p5{background:var(--color-orange-highlight);color:var(--color-orange);}
+.phase-icon.p6{background:var(--color-success-highlight);color:var(--color-success);}
+.phase-meta{flex:1;}
+.phase-name{font-weight:600;font-size:var(--text-sm);}
+.phase-sub{font-size:var(--text-xs);color:var(--color-text-muted);}
+.phase-duration{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-muted);flex-shrink:0;}
+.phase-chevron{color:var(--color-text-faint);transition:transform var(--transition-interactive);flex-shrink:0;}
+.phase-card.open .phase-chevron{transform:rotate(180deg);}
+.phase-body{display:none;padding:1.25rem;background:var(--color-surface-2);border-top:1px solid var(--color-border);}
+.phase-card.open .phase-body{display:block;}
+.tasks{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;}
+.task{display:flex;align-items:flex-start;gap:.6rem;padding:.6rem .75rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);}
+.task-check{width:16px;height:16px;border:1.5px solid var(--color-border);border-radius:3px;margin-top:.15rem;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.task-check.done{background:var(--color-primary);border-color:var(--color-primary);}
+.task-check.done::after{content:"✓";color:white;font-size:10px;}
+.task-text{font-size:var(--text-sm);flex:1;}
+.task-tags{display:flex;gap:.25rem;flex-wrap:wrap;margin-top:.25rem;}
+.phase-learn{margin-top:1rem;padding:.75rem;background:var(--color-primary-highlight);border-radius:var(--radius-md);border:1px solid color-mix(in oklch,var(--color-primary) 15%,transparent);}
+.phase-learn-title{font-size:var(--text-xs);font-weight:600;color:var(--color-primary);margin-bottom:.4rem;font-family:var(--font-mono);}
+.phase-learn ul{list-style:none;display:flex;flex-direction:column;gap:.2rem;}
+.phase-learn ul li{font-size:var(--text-xs);color:var(--color-text-muted);padding-left:.75rem;position:relative;}
+.phase-learn ul li::before{content:"→";position:absolute;left:0;color:var(--color-primary);}
+
+/* Stack table */
+.stack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.75rem;}
+.stack-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1rem 1.1rem;box-shadow:var(--shadow-sm);}
+.stack-card-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;}
+.stack-card-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.stack-card-category{font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);font-family:var(--font-mono);}
+.stack-card h3{font-size:var(--text-sm);font-weight:600;margin-bottom:.3rem;}
+.stack-card p{font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.5;margin-bottom:.6rem;}
+.stack-card .why{font-size:var(--text-xs);color:var(--color-primary);font-style:italic;}
+
+/* Interview topics */
+.interview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;}
+.interview-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:1rem;}
+.interview-card h3{font-size:var(--text-sm);font-weight:600;margin-bottom:.5rem;}
+.interview-q{font-size:var(--text-xs);color:var(--color-text-muted);padding:.4rem .6rem;background:var(--color-surface-offset);border-radius:var(--radius-sm);margin-bottom:.3rem;border-left:2px solid var(--color-primary);}
+
+/* Footer */
+footer{border-top:1px solid var(--color-border);padding:1.5rem;text-align:center;font-size:var(--text-xs);color:var(--color-text-faint);}
+
+@media(max-width:768px){
+  .arch-grid{grid-template-columns:1fr;}
+  .arch-cell.wide,.arch-cell.two{grid-column:span 1;}
+  .hero-stats{gap:1rem;}
+  .header-nav{display:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="logo" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="RAG Platform logo">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    RAG ML Platform
+  </a>
+  <nav class="header-nav">
+    <a href="#diagram">Diagram</a><a href="#architecture">Stack Overview</a>
+    <a href="#stack">Stack</a>
+    <a href="#phases">Roadmap</a>
+    <a href="#interview">Interview Prep</a>
+  </nav>
+  <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
+</header>
+
+<main class="main">
+
+  <!-- Interactive System Diagram -->
+  <section class="section" id="diagram" style="margin-bottom:2rem;">
+    <div class="section-header">
+      <span class="section-num">00</span>
+      <div>
+        <div class="section-title">Interactive System Diagram</div>
+        <div class="section-desc">Click any node to see calls, responsibilities, and tech details</div>
+      </div>
+    </div>
+
+    <style>
+      #diagram-wrap { position:relative; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-xl); overflow:hidden; box-shadow:var(--shadow-lg); }
+      #arch-svg .node { cursor:pointer; }
+      #arch-svg .node rect { transition: filter 0.15s, stroke-width 0.15s; }
+      #arch-svg .node:hover rect { filter:brightness(1.12); stroke-width:2.5px; }
+      #arch-svg .node.active rect { stroke-width:2.5px; filter:brightness(1.18) drop-shadow(0 0 6px currentColor); }
+      #arch-svg .edge { transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s; }
+      #arch-svg .edge.highlight { stroke: var(--color-primary) !important; stroke-width:2.5px !important; opacity:1 !important; }
+      #arch-svg .edge.dimmed { opacity:0.15; }
+      #node-panel { display:none; position:absolute; right:0; top:0; bottom:0; width:270px; background:var(--color-surface-2); border-left:1px solid var(--color-border); padding:1.25rem 1rem; overflow-y:auto; font-family:var(--font-body); }
+      .panel-section-title { font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--color-text-faint); margin-bottom:.35rem; font-family:var(--font-mono); }
+      .call-item { font-size:.73rem; padding:.28rem .5rem; background:var(--color-surface-offset); border-radius:5px; margin-bottom:.2rem; display:flex; align-items:center; gap:.4rem; color:var(--color-text-muted); }
+      .call-arrow { color:var(--color-primary); font-weight:700; font-size:.8rem; }
+      .panel-tag { display:inline-block; font-size:.68rem; font-family:var(--font-mono); padding:.12rem .38rem; border-radius:3px; margin:.12rem .1rem 0 0; background:var(--color-primary-highlight); color:var(--color-primary); }
+      .component-list { display:flex; flex-direction:column; gap:.35rem; margin:.35rem 0 .8rem; }
+      .component-item { padding:.45rem .55rem; border:1px solid var(--color-border); border-radius:6px; background:var(--color-surface); }
+      .component-name { display:block; font-size:.72rem; font-weight:600; color:var(--color-text); line-height:1.3; }
+      .component-desc { display:block; font-size:.68rem; color:var(--color-text-muted); line-height:1.45; margin-top:.15rem; }
+      .note-item { font-size:.72rem; color:var(--color-text-muted); padding-left:.75rem; position:relative; margin-bottom:.2rem; line-height:1.5; }
+      .note-item::before { content:"→"; position:absolute; left:0; color:var(--color-primary); }
+    </style>
+
+    <div id="diagram-wrap">
+      <svg id="arch-svg" viewBox="0 0 860 760" width="100%" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="mArr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <polygon points="0,0 7,3.5 0,7" fill="var(--color-text-faint)"/>
+          </marker>
+          <marker id="mArrHL" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <polygon points="0,0 7,3.5 0,7" fill="var(--color-primary)"/>
+          </marker>
+        </defs>
+
+        <!-- ══════════════════════════════════════════
+             LAYOUT (all coords are TOP-LEFT of each box)
+
+             Row 0 (y=30):  Users (centered: x=300, w=260)
+             Row 1 (y=130): API Gateway (centered: x=280, w=300)
+             Row 2 (y=250): Query(x=40), Ingestion(x=310), Observability(x=620)
+             Row 3 (y=390): Qdrant(x=40), LLM(x=230), PubSub(x=390), GCS(x=580), Postgres(x=680) -- too wide
+
+             Revised:
+             Row 3 (y=390): Qdrant(x=30), LLM(x=200), PubSub(x=370), GCS(x=570), Postgres(x=690)  
+             Row 4 (y=530): Workers (centered: x=290, w=280)
+             Row 5 (y=650): VertexAI(x=200, w=210), MLflow(x=580, w=150)
+
+             GKE border: x=15, y=110, w=830, h=630
+        ══════════════════════════════════════════ -->
+
+        <!-- GKE boundary -->
+        <rect x="15" y="112" width="830" height="632" rx="10"
+              fill="none" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="6,4" opacity="0.6"/>
+        <text x="30" y="130" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--color-text-faint)">GKE / GCP Infrastructure (Terraform managed)</text>
+
+        <!-- ── EDGES (drawn BEFORE nodes so nodes render on top) ── -->
+
+        <!-- users → api  (center-bottom of users → center-top of api) -->
+        <line class="edge" id="e-users-api"
+              x1="430" y1="78" x2="430" y2="128"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="users" data-to="api"/>
+
+        <!-- api → query (api boundary → query top edge) -->
+        <line class="edge" id="e-api-query"
+              x1="355" y1="178" x2="130" y2="248"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="api" data-to="query"/>
+
+        <!-- api → ingestion (bottom-center of api → top of ingestion) -->
+        <line class="edge" id="e-api-ingestion"
+              x1="430" y1="178" x2="430" y2="248"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="api" data-to="ingestion"/>
+
+        <!-- api → obs (api boundary → observability top edge) -->
+        <line class="edge" id="e-api-obs"
+              x1="505" y1="178" x2="729" y2="248"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="api" data-to="obs"/>
+
+        <!-- query → qdrant -->
+        <line class="edge" id="e-query-qdrant"
+              x1="107" y1="310" x2="107" y2="388"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="query" data-to="qdrant"/>
+
+        <!-- query → llm -->
+        <line class="edge" id="e-query-llm"
+              x1="170" y1="310" x2="282" y2="388"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="query" data-to="llm"/>
+
+        <!-- query → obs (dashed, traces) -->
+        <line class="edge" id="e-query-obs"
+              x1="220" y1="278" x2="618" y2="278"
+              stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="query" data-to="obs"/>
+
+        <!-- ingestion → pubsub (bottom edge → top edge) -->
+        <line class="edge" id="e-ingestion-pubsub"
+              x1="455" y1="310" x2="460" y2="388"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="ingestion" data-to="pubsub"/>
+
+        <!-- ingestion → gcs (dashed, file handoff) -->
+        <line class="edge" id="e-ingestion-gcs"
+              x1="520" y1="310" x2="640" y2="388"
+              stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="ingestion" data-to="gcs"/>
+
+        <!-- ingestion → postgres (metadata write) -->
+        <path class="edge" id="e-ingestion-postgres"
+              d="M 545,310 C 640,330 720,350 787,388"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="ingestion" data-to="postgres"/>
+
+        <!-- gcs → pubsub (dashed, event notification from left edge to right edge) -->
+        <path class="edge" id="e-gcs-pubsub"
+              d="M 565,440 Q 555,468 545,440"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="gcs" data-to="pubsub"/>
+
+        <!-- pubsub → workers -->
+        <line class="edge" id="e-pubsub-workers"
+              x1="460" y1="450" x2="440" y2="528"
+              stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="pubsub" data-to="workers"/>
+
+        <!-- workers → qdrant (worker boundary → qdrant boundary) -->
+        <path class="edge" id="e-workers-qdrant"
+              d="M 310,552 Q 210,535 130,450"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="workers" data-to="qdrant"/>
+
+        <!-- workers → postgres (worker boundary → postgres boundary) -->
+        <path class="edge" id="e-workers-postgres"
+              d="M 555,552 Q 680,535 730,450"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" marker-end="url(#mArr)"
+              data-from="workers" data-to="postgres"/>
+
+        <!-- workers → vertex (dashed) -->
+        <line class="edge" id="e-workers-vertex"
+              x1="400" y1="590" x2="340" y2="648"
+              stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="workers" data-to="vertex"/>
+
+        <!-- workers → mlflow (dashed) -->
+        <line class="edge" id="e-workers-mlflow"
+              x1="570" y1="580" x2="628" y2="648"
+              stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="workers" data-to="mlflow"/>
+
+        <!-- workers → obs (dashed telemetry, worker boundary → observability boundary) -->
+        <path class="edge" id="e-workers-obs"
+              d="M 570,540 Q 650,490 690,310"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="workers" data-to="obs"/>
+
+        <!-- mlflow → obs (dashed metrics/traces, mlflow boundary → observability boundary) -->
+        <path class="edge" id="e-mlflow-obs"
+              d="M 720,648 Q 820,560 785,310"
+              fill="none" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"
+              data-from="mlflow" data-to="obs"/>
+
+        <!-- ── NODES ── -->
+
+        <!-- USERS  (x=300 y=30  w=260 h=48) -->
+        <g class="node" data-id="users">
+          <rect x="300" y="30" width="260" height="48" rx="8"
+                fill="var(--color-surface-2)" stroke="var(--color-border)" stroke-width="1.5"/>
+          <text x="430" y="50" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Users / UI</text>
+          <text x="430" y="67" text-anchor="middle" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-text-muted)">Web App · Admin Dashboard · REST Client</text>
+        </g>
+
+        <!-- API GATEWAY  (x=280 y=128  w=300 h=50) -->
+        <g class="node" data-id="api">
+          <rect x="280" y="128" width="300" height="50" rx="8"
+                fill="var(--color-primary-highlight)" stroke="var(--color-primary)" stroke-width="1.5"/>
+          <text x="430" y="149" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">API Gateway</text>
+          <text x="430" y="166" text-anchor="middle" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-primary)">FastAPI · JWT/OAuth2 · RBAC · Rate Limiting</text>
+        </g>
+
+        <!-- QUERY  (x=40 y=248  w=180 h=62) -->
+        <g class="node" data-id="query">
+          <rect x="40" y="248" width="180" height="62" rx="8"
+                fill="var(--color-blue-highlight)" stroke="var(--color-blue)" stroke-width="1.5"/>
+          <text x="130" y="268" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Query / Retrieval</text>
+          <text x="130" y="283" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-blue)">Hybrid Search · Reranker</text>
+          <text x="130" y="298" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-blue)">Prompt Builder · LLM Call</text>
+        </g>
+
+        <!-- INGESTION  (x=310 y=248  w=240 h=62) -->
+        <g class="node" data-id="ingestion">
+          <rect x="310" y="248" width="240" height="62" rx="8"
+                fill="var(--color-gold-highlight)" stroke="var(--color-gold)" stroke-width="1.5"/>
+          <text x="430" y="268" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Ingestion Service</text>
+          <text x="430" y="283" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-gold)">Upload Handoff · Metadata</text>
+          <text x="430" y="298" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-gold)">GCS · PostgreSQL · Pub/Sub</text>
+        </g>
+
+        <!-- OBSERVABILITY  (x=618 y=248  w=220 h=62) -->
+        <g class="node" data-id="obs">
+          <rect x="618" y="248" width="222" height="62" rx="8"
+                fill="var(--color-purple-highlight)" stroke="var(--color-purple)" stroke-width="1.5"/>
+          <text x="729" y="268" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Observability</text>
+          <text x="729" y="283" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-purple)">Langfuse · Prometheus · Grafana</text>
+          <text x="729" y="298" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-purple)">OpenTelemetry Collector</text>
+        </g>
+
+        <!-- QDRANT  (x=30 y=388  w=155 h=62) -->
+        <g class="node" data-id="qdrant">
+          <rect x="30" y="388" width="155" height="62" rx="8"
+                fill="var(--color-success-highlight)" stroke="var(--color-success)" stroke-width="1.5"/>
+          <text x="107" y="408" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Qdrant</text>
+          <text x="107" y="423" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-success)">Vector Store · HNSW</text>
+          <text x="107" y="438" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-success)">Dense + Sparse Vectors</text>
+        </g>
+
+        <!-- LLM  (x=205 y=388  w=155 h=62) -->
+        <g class="node" data-id="llm">
+          <rect x="205" y="388" width="155" height="62" rx="8"
+                fill="var(--color-blue-highlight)" stroke="var(--color-blue)" stroke-width="1.5"/>
+          <text x="282" y="408" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">LLM</text>
+          <text x="282" y="423" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-blue)">Vertex AI Gemini</text>
+          <text x="282" y="438" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-blue)">OpenAI fallback · SSE</text>
+        </g>
+
+        <!-- PUB/SUB  (x=375 y=388  w=170 h=62) -->
+        <g class="node" data-id="pubsub">
+          <rect x="375" y="388" width="170" height="62" rx="8"
+                fill="var(--color-notification-highlight)" stroke="var(--color-notification)" stroke-width="1.5"/>
+          <text x="460" y="408" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">GCP Pub/Sub</text>
+          <text x="460" y="423" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-notification)">Async Queue · DLQ</text>
+          <text x="460" y="438" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-notification)">Decouples ingestion</text>
+        </g>
+
+        <!-- GCS  (x=565 y=388  w=150 h=62) -->
+        <g class="node" data-id="gcs">
+          <rect x="565" y="388" width="150" height="62" rx="8"
+                fill="var(--color-surface-offset)" stroke="var(--color-border)" stroke-width="1.5"/>
+          <text x="640" y="408" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Cloud Storage</text>
+          <text x="640" y="423" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-text-muted)">Raw Docs · GCS</text>
+          <text x="640" y="438" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-text-muted)">Event → Pub/Sub</text>
+        </g>
+
+        <!-- POSTGRES  (x=730 y=388  w=115 h=62) -->
+        <g class="node" data-id="postgres">
+          <rect x="730" y="388" width="115" height="62" rx="8"
+                fill="var(--color-success-highlight)" stroke="var(--color-success)" stroke-width="1.5"/>
+          <text x="787" y="408" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">PostgreSQL</text>
+          <text x="787" y="423" text-anchor="middle" font-size="8" font-family="JetBrains Mono,monospace" fill="var(--color-success)">Metadata DBs</text>
+          <text x="787" y="438" text-anchor="middle" font-size="8" font-family="JetBrains Mono,monospace" fill="var(--color-success)">Private IP · IAM</text>
+        </g>
+
+        <!-- WORKERS  (x=290 y=528  w=280 h=62) -->
+        <g class="node" data-id="workers">
+          <rect x="290" y="528" width="280" height="62" rx="8"
+                fill="var(--color-orange-highlight)" stroke="var(--color-orange)" stroke-width="1.5"/>
+          <text x="430" y="548" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Prefect Workers</text>
+          <text x="430" y="563" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-orange)">Embedding · Chunking · RAGAS Eval</text>
+          <text x="430" y="578" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono,monospace" fill="var(--color-orange)">Prefect Flows · Retries · Caching</text>
+        </g>
+
+        <!-- VERTEX AI  (x=180 y=648  w=230 h=48) -->
+        <g class="node" data-id="vertex">
+          <rect x="180" y="648" width="230" height="48" rx="8"
+                fill="var(--color-blue-highlight)" stroke="var(--color-blue)" stroke-width="1.5"/>
+          <text x="295" y="668" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">Vertex AI Embeddings</text>
+          <text x="295" y="684" text-anchor="middle" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-blue)">text-embedding-004 · Batch API</text>
+        </g>
+
+        <!-- MLFLOW  (x=600 y=648  w=155 h=48) -->
+        <g class="node" data-id="mlflow">
+          <rect x="600" y="648" width="155" height="48" rx="8"
+                fill="var(--color-gold-highlight)" stroke="var(--color-gold)" stroke-width="1.5"/>
+          <text x="677" y="668" text-anchor="middle" font-size="12" font-weight="700" font-family="Inter,sans-serif" fill="var(--color-text)">MLflow</text>
+          <text x="677" y="684" text-anchor="middle" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-gold)">Registry · Experiments</text>
+        </g>
+
+        <!-- LEGEND -->
+        <g transform="translate(30, 720)">
+          <line x1="0" y1="8" x2="32" y2="8" stroke="var(--color-text-muted)" stroke-width="1.5" marker-end="url(#mArr)"/>
+          <text x="38" y="12" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-text-faint)">sync call</text>
+          <line x1="120" y1="8" x2="152" y2="8" stroke="var(--color-text-muted)" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#mArr)"/>
+          <text x="158" y="12" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-text-faint)">async / event</text>
+          <text x="310" y="12" font-size="9" font-family="JetBrains Mono,monospace" fill="var(--color-text-faint)">↑ click any node for details</text>
+        </g>
+
+      </svg>
+
+      <!-- Side Panel -->
+      <div id="node-panel">
+        <button onclick="closePanel()" style="position:absolute;top:.6rem;right:.6rem;color:var(--color-text-muted);font-size:1rem;padding:.25rem .4rem;border-radius:4px;" aria-label="Close">✕</button>
+        <div id="panel-icon" style="font-size:1.4rem;margin-bottom:.4rem;"></div>
+        <div id="panel-title" style="font-weight:700;font-size:.95rem;color:var(--color-text);margin-bottom:.2rem;padding-right:1.5rem;"></div>
+        <div id="panel-subtitle" style="font-size:.7rem;color:var(--color-text-muted);font-family:var(--font-mono);margin-bottom:.9rem;line-height:1.5;"></div>
+        <div id="panel-calls-out" style="margin-bottom:.6rem;"></div>
+        <div id="panel-calls-in" style="margin-bottom:.6rem;"></div>
+        <div id="panel-body" style="border-top:1px solid var(--color-border);padding-top:.75rem;font-size:.78rem;color:var(--color-text-muted);line-height:1.65;"></div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+  (function(){
+    const NODE_DATA = {
+      users:{
+        icon:"👤",title:"Users / UI",subtitle:"Web App · Admin Dashboard · REST Client",
+        calls:["api"],calledBy:[],tech:["Web client","Admin dashboard","REST / SSE"],
+        components:[
+          {name:"Query UI",desc:"Submits user prompts and renders streamed answers."},
+          {name:"Admin upload view",desc:"Uploads documents through the API only; no direct storage access."},
+          {name:"Ops links",desc:"Links to Grafana and Langfuse for demos and debugging."}
+        ],
+        desc:"Entry point for users and admins. Sends queries to the API Gateway and displays streamed LLM responses.",
+        notes:["Connects only to API Gateway — no direct service calls","SSE for streaming LLM output token by token","Admin UI can surface ingestion status and evaluation links"]
+      },
+      api:{
+        icon:"🔀",title:"API Gateway",subtitle:"FastAPI · JWT/OAuth2 · RBAC · Rate Limiting",
+        calls:["query","ingestion","obs"],calledBy:["users"],tech:["FastAPI","JWT/OAuth2","RBAC middleware","Rate limiting","OpenTelemetry SDK"],
+        components:[
+          {name:"Auth middleware",desc:"Validates JWTs and rejects unauthenticated requests before downstream calls."},
+          {name:"RBAC policy layer",desc:"Enforces admin/user/readonly access patterns."},
+          {name:"Route handlers",desc:"Routes query and upload requests to the correct service boundary."},
+          {name:"Health probes",desc:"Exposes /health and /ready for Kubernetes."},
+          {name:"Telemetry middleware",desc:"Creates request spans and emits structured logs."}
+        ],
+        desc:"Single entry point for all traffic. Validates identity, applies coarse-grained policy, and routes to downstream services.",
+        notes:["Stateless — scales horizontally behind a K8s Service","Emits OTel spans for every request to Observability stack","Returns 401/403 before hitting downstream services"]
+      },
+      query:{
+        icon:"🔍",title:"Query / Retrieval Service",subtitle:"Hybrid Search · CrossEncoder Reranker · LLM",
+        calls:["qdrant","llm","obs"],calledBy:["api"],tech:["FastAPI","Qdrant Python SDK","CrossEncoder reranker","OpenTelemetry SDK"],
+        components:[
+          {name:"Query endpoint",desc:"Validates request shape and owns SSE response streaming."},
+          {name:"Query embedding client",desc:"Creates the query vector through Vertex AI before retrieval."},
+          {name:"Hybrid retriever",desc:"Runs dense vector search plus sparse/BM25-style retrieval."},
+          {name:"RRF fusion",desc:"Merges dense and sparse rankings without hand-tuned score weighting."},
+          {name:"CrossEncoder reranker",desc:"Re-scores the candidate set before prompt assembly."},
+          {name:"Prompt builder",desc:"Assembles system prompt, retrieved chunks, citations, and user query."},
+          {name:"Trace spans",desc:"Records retrieval, reranking, generation, and latency boundaries."}
+        ],
+        desc:"Full query path: embed query → hybrid retrieval → RRF fusion → rerank → prompt → LLM → stream response.",
+        notes:["Two-stage: ANN recall (top-50) → reranker precision (top-5)","RRF fusion combines dense + sparse rank signals","Token counts and latency per span are observable"]
+      },
+      ingestion:{
+        icon:"📥",title:"Ingestion Service",subtitle:"Upload Handoff · Metadata · Pub/Sub",
+        calls:["gcs","postgres","pubsub"],calledBy:["api"],tech:["FastAPI","GCS Python SDK","Pub/Sub SDK","PostgreSQL metadata"],
+        components:[
+          {name:"Upload endpoint",desc:"Accepts files and metadata from the API layer."},
+          {name:"GCS writer",desc:"Stores raw documents in Cloud Storage."},
+          {name:"Metadata writer",desc:"Creates document records and ingestion status in PostgreSQL."},
+          {name:"Pub/Sub publisher",desc:"Emits an event for async Prefect processing."},
+          {name:"Validation layer",desc:"Checks file type, size, and required metadata before handoff."}
+        ],
+        desc:"Handles the synchronous upload handoff. Raw files go to GCS, metadata goes to PostgreSQL, and processing starts through Pub/Sub.",
+        notes:["Stateless service — store, record, emit, return","Actual chunking and embedding happen in Prefect workers","Keeps ingestion latency low and retryable"]
+      },
+      obs:{
+        icon:"📊",title:"Observability Stack",subtitle:"Langfuse · Prometheus · Grafana · OTel Collector",
+        calls:[],calledBy:["api","query","workers","mlflow"],tech:["Langfuse","Prometheus","Grafana","OpenTelemetry Collector"],
+        components:[
+          {name:"Langfuse",desc:"LLM traces, generations, token usage, and RAG quality signals."},
+          {name:"Prometheus",desc:"Scrapes service and platform metrics."},
+          {name:"Grafana",desc:"Dashboards for latency, throughput, errors, and ingestion health."},
+          {name:"OTel Collector",desc:"Receives traces/metrics and routes them to the right backend."},
+          {name:"Alert rules",desc:"Error rate, latency, and storage pressure thresholds."}
+        ],
+        desc:"Central observability plane for traces, metrics, dashboards, and alerts across the platform.",
+        notes:["Langfuse is self-hosted with Cloud SQL","OTel Collector provides one instrumentation path","Alerts cover error rate, P99 latency, and Qdrant disk pressure"]
+      },
+      qdrant:{
+        icon:"🗄️",title:"Qdrant",subtitle:"Vector Store · HNSW · Dense + Sparse Hybrid",
+        calls:[],calledBy:["query","workers"],tech:["Qdrant","HNSW","Sparse vectors","K8s StatefulSet + PVC"],
+        components:[
+          {name:"StatefulSet",desc:"Stable pod identity and storage ownership for the vector database."},
+          {name:"PVC storage",desc:"Persistent volume backing Qdrant data."},
+          {name:"Collections",desc:"Stores chunks with dense vectors, sparse vectors, and payload metadata."},
+          {name:"HNSW index",desc:"Approximate nearest-neighbor index for low-latency retrieval."},
+          {name:"Snapshot job",desc:"Backups to GCS for disaster recovery."}
+        ],
+        desc:"Primary vector store for chunk retrieval. Query reads from it; workers upsert indexed chunks.",
+        notes:["StatefulSet — not a Deployment","Internal ClusterIP only in dev","Snapshots should land in GCS for DR"]
+      },
+      llm:{
+        icon:"🤖",title:"LLM",subtitle:"Vertex AI Gemini · Optional Fallback · SSE Streaming",
+        calls:[],calledBy:["query"],tech:["Vertex AI Gemini","Server-Sent Events","Langfuse generation spans"],
+        components:[
+          {name:"Vertex Gemini client",desc:"Primary managed LLM endpoint on GCP."},
+          {name:"Prompt renderer",desc:"Final prompt format sent to the model."},
+          {name:"Streaming adapter",desc:"Turns generated tokens into SSE events."},
+          {name:"Fallback adapter",desc:"Optional third-party provider path if configured."},
+          {name:"Usage recorder",desc:"Captures latency, token counts, and generation metadata."}
+        ],
+        desc:"Receives the assembled prompt and streams generated output back to the query service.",
+        notes:["Primary path stays GCP-native","Fallback secrets belong in Secret Manager + CSI","Generation metadata is traced"]
+      },
+      pubsub:{
+        icon:"📨",title:"GCP Pub/Sub",subtitle:"Async Queue · Dead Letter Queue · Event-driven",
+        calls:["workers"],calledBy:["ingestion","gcs"],tech:["GCP Pub/Sub","Subscriptions","Dead Letter Topic","Terraform-managed topics"],
+        components:[
+          {name:"Ingestion topic",desc:"Receives document processing events."},
+          {name:"Worker subscription",desc:"Feeds Prefect workers or a worker trigger service."},
+          {name:"Dead-letter topic",desc:"Keeps repeatedly failed messages visible and recoverable."},
+          {name:"Message contract",desc:"Carries doc_id, gcs_path, tenant/source metadata, and idempotency key."}
+        ],
+        desc:"Decouples upload from asynchronous parsing, chunking, embedding, and indexing.",
+        notes:["At-least-once delivery means workers must be idempotent","DLQ prevents silent data loss","GCS uploads can also emit events"]
+      },
+      gcs:{
+        icon:"🪣",title:"Cloud Storage (GCS)",subtitle:"Raw Docs · Event Notifications → Pub/Sub",
+        calls:["pubsub"],calledBy:["ingestion"],tech:["Cloud Storage","Object notifications","IAM + Workload Identity","Lifecycle policies"],
+        components:[
+          {name:"Raw docs bucket",desc:"Stores uploaded source files."},
+          {name:"Qdrant snapshot bucket",desc:"Durable backup target for vector-store snapshots."},
+          {name:"Terraform state bucket",desc:"Remote state for infrastructure automation."},
+          {name:"Object notifications",desc:"Optional event source into Pub/Sub."},
+          {name:"Lifecycle policy",desc:"Controls retention and storage-class transitions."}
+        ],
+        desc:"Durable object storage for raw documents, snapshots, and Terraform state.",
+        notes:["Buckets should be separate by concern","Access via IAM and Workload Identity","Lifecycle rules reduce long-term cost"]
+      },
+      postgres:{
+        icon:"🐘",title:"PostgreSQL",subtitle:"Cloud SQL · Private IP · IAM Auth",
+        calls:[],calledBy:["workers","ingestion"],tech:["Cloud SQL for PostgreSQL","SQLAlchemy ORM","Alembic migrations","IAM database auth"],
+        components:[
+          {name:"rag_metadata database",desc:"Documents, chunks, users, and ingestion status."},
+          {name:"langfuse database",desc:"Backend store for self-hosted Langfuse."},
+          {name:"mlflow database",desc:"Backend store for MLflow tracking and registry metadata."},
+          {name:"IAM auth",desc:"No static database passwords for service workloads."},
+          {name:"Automated backups",desc:"PITR-ready restore story for production."}
+        ],
+        desc:"Relational metadata store. Structured records live here; vector search remains in Qdrant.",
+        notes:["Private IP through PSA","IAM database auth — no static passwords stored","Alembic migrations run through deployment workflow"]
+      },
+      workers:{
+        icon:"⚙️",title:"Prefect Workers",subtitle:"Embedding · Chunking · Eval · Flows",
+        calls:["qdrant","postgres","vertex","obs","mlflow"],calledBy:["pubsub"],tech:["Prefect 2.x","K8s Jobs","Vertex AI Batch API","RAGAS"],
+        components:[
+          {name:"chunk_embed_flow",desc:"Parse → chunk → embed → upsert Qdrant → write Postgres."},
+          {name:"eval_flow",desc:"Runs RAGAS-style checks and logs results."},
+          {name:"snapshot_flow",desc:"Creates Qdrant snapshots and stores them in GCS."},
+          {name:"Retry policy",desc:"Handles transient model, network, and storage failures."},
+          {name:"Idempotency guard",desc:"Prevents duplicate chunk/vector writes on message replay."}
+        ],
+        desc:"Async processing backbone for ingestion, evaluation, and backup workflows.",
+        notes:["K8s Jobs can scale to zero when idle","Flows retry automatically on transient failures","Idempotency is required because Pub/Sub is at-least-once"]
+      },
+      vertex:{
+        icon:"✨",title:"Vertex AI Embeddings",subtitle:"text-embedding-004 · Batch + Real-time",
+        calls:[],calledBy:["workers"],tech:["Vertex AI text-embedding-004","Batch Prediction API","Real-time Prediction API","Workload Identity auth"],
+        components:[
+          {name:"Batch embedding",desc:"Cost-efficient bulk embedding for ingestion."},
+          {name:"Real-time embedding",desc:"Low-latency query embedding path."},
+          {name:"Model version metadata",desc:"Recorded in MLflow for reproducibility."},
+          {name:"Workload Identity auth",desc:"No API keys in code or containers."}
+        ],
+        desc:"Managed embedding service used by workers and the query path.",
+        notes:["GCP-native auth and billing","Batch mode for bulk ingestion","Real-time mode for queries"]
+      },
+      mlflow:{
+        icon:"🧪",title:"MLflow",subtitle:"Tracking · Registry · Experiments",
+        calls:["obs"],calledBy:["workers"],tech:["MLflow Tracking Server","MLflow Model Registry","GCS artifact store","Cloud SQL backend"],
+        components:[
+          {name:"Tracking server",desc:"Experiment runs, params, metrics, and artifacts."},
+          {name:"Model registry",desc:"Lifecycle for embedding models and chunking configs."},
+          {name:"GCS artifact store",desc:"Durable artifact location."},
+          {name:"Cloud SQL backend",desc:"Stores run and registry metadata."},
+          {name:"Promotion gate",desc:"Canary/rollback uses RAGAS and quality signals."}
+        ],
+        desc:"Tracks embedding model versions, chunking strategies, and evaluation results.",
+        notes:["Chunking configs are treated like model hyperparameters","Model lifecycle: Staging → Production with quality gate","Feeds dashboards through metrics and traces"]
+      }
+    };
+
+    function label(id){ return NODE_DATA[id]?.title || id; }
+
+    function openPanel(id){
+      const d = NODE_DATA[id];
+      if(!d) return;
+      // If same node, close
+      if(document.querySelector('.node.active')?.dataset.id === id){ closePanel(); return; }
+
+      // reset
+      document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+      document.querySelectorAll('.edge').forEach(e=>{ e.classList.remove('highlight','dimmed'); e.setAttribute('marker-end','url(#mArr)'); });
+
+      // activate
+      document.querySelector('.node[data-id="'+id+'"]')?.classList.add('active');
+
+      // highlight/dim edges
+      const relEdges = new Set();
+      document.querySelectorAll('.edge').forEach(e=>{
+        if(e.dataset.from===id||e.dataset.to===id){
+          e.classList.add('highlight');
+          e.setAttribute('marker-end','url(#mArrHL)');
+          relEdges.add(e);
+        }
+      });
+      document.querySelectorAll('.edge').forEach(e=>{ if(!relEdges.has(e)) e.classList.add('dimmed'); });
+
+      // fill panel
+      document.getElementById('panel-icon').textContent = d.icon;
+      document.getElementById('panel-title').textContent = d.title;
+      document.getElementById('panel-subtitle').textContent = d.subtitle;
+
+      let out='';
+      if(d.calls?.length){ out+=`<div class="panel-section-title">Calls →</div>`; d.calls.forEach(t=>{ out+=`<div class="call-item"><span class="call-arrow">→</span>${label(t)}</div>`; }); }
+      document.getElementById('panel-calls-out').innerHTML=out;
+
+      let inc='';
+      if(d.calledBy?.length){ inc+=`<div class="panel-section-title">Called by ←</div>`; d.calledBy.forEach(t=>{ inc+=`<div class="call-item"><span class="call-arrow">←</span>${label(t)}</div>`; }); }
+      document.getElementById('panel-calls-in').innerHTML=inc;
+
+      let body=`<p style="margin-bottom:.75rem;">${d.desc}</p>`;
+      if(d.components?.length){
+        body+=`<div class="panel-section-title">Inside this component</div><div class="component-list">`
+          +d.components.map(c=>`<div class="component-item"><span class="component-name">${c.name}</span><span class="component-desc">${c.desc}</span></div>`).join('')
+          +`</div>`;
+      }
+      if(d.tech?.length){ body+=`<div class="panel-section-title" style="margin-top:.5rem;">Technologies</div><div style="margin-bottom:.7rem;">`+d.tech.map(t=>`<span class="panel-tag">${t}</span>`).join('')+`</div>`; }
+      if(d.notes?.length){ body+=`<div class="panel-section-title">Key Notes</div>`+d.notes.map(n=>`<div class="note-item">${n}</div>`).join(''); }
+      document.getElementById('panel-body').innerHTML=body;
+
+      document.getElementById('node-panel').style.display='block';
+    }
+
+    function closePanel(){
+      document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+      document.querySelectorAll('.edge').forEach(e=>{ e.classList.remove('highlight','dimmed'); e.setAttribute('marker-end','url(#mArr)'); });
+      document.getElementById('node-panel').style.display='none';
+    }
+
+    window.closePanel = closePanel;
+
+    document.querySelectorAll('#arch-svg .node').forEach(n=>{
+      n.addEventListener('click', ()=> openPanel(n.dataset.id));
+    });
+  })();
+  </script>
+
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      MLOps Portfolio Project
+    </div>
+    <h1>Production-Grade RAG Platform on GCP</h1>
+    <p>A complete ML Engineering project designed to showcase deep knowledge of distributed systems, MLOps pipelines, observability, and cloud-native architecture — not just RAG itself.</p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-value">6</span><span class="stat-label">Project Phases</span></div>
+      <div class="stat"><span class="stat-value">18+</span><span class="stat-label">Technologies</span></div>
+      <div class="stat"><span class="stat-value">~12w</span><span class="stat-label">Estimated Timeline</span></div>
+      <div class="stat"><span class="stat-value">∞</span><span class="stat-label">Interview Topics</span></div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section class="section" id="architecture">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <div>
+        <div class="section-title">System Architecture</div>
+        <div class="section-desc">Your original design, refined and extended with production-grade components</div>
+      </div>
+    </div>
+    <div class="arch-grid">
+      <!-- Row 1: Users -->
+      <div class="arch-cell wide">
+        <div class="arch-cell-label">Entry Layer</div>
+        <div class="arch-cell-title">Users / UI</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-neutral">Streamlit / React Admin</span>
+          <span class="tag tag-neutral">Web Dashboard</span>
+          <span class="tag tag-neutral">REST API Client</span>
+        </div>
+      </div>
+      <!-- Row 2: API Gateway -->
+      <div class="arch-cell wide">
+        <div class="arch-cell-label">Gateway Layer</div>
+        <div class="arch-cell-title">API Gateway — FastAPI</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-primary">FastAPI</span>
+          <span class="tag tag-primary">JWT / OAuth2</span>
+          <span class="tag tag-primary">RBAC Middleware</span>
+          <span class="tag tag-neutral">Rate Limiting</span>
+          <span class="tag tag-neutral">OpenAPI Docs</span>
+        </div>
+      </div>
+      <!-- Row 3: Services -->
+      <div class="arch-cell">
+        <div class="arch-cell-label">Query Service</div>
+        <div class="arch-cell-title">Retrieval & Generation</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-blue">LangChain / LlamaIndex</span>
+          <span class="tag tag-blue">Hybrid Search</span>
+          <span class="tag tag-blue">Reranker (CrossEncoder)</span>
+          <span class="tag tag-blue">Vertex AI / OpenAI</span>
+        </div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-cell-label">Ingestion Service</div>
+        <div class="arch-cell-title">Document Pipeline</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-gold">Prefect Flows</span>
+          <span class="tag tag-gold">Unstructured.io</span>
+          <span class="tag tag-gold">Recursive Chunking</span>
+          <span class="tag tag-gold">Pub/Sub Trigger</span>
+        </div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-cell-label">Observability</div>
+        <div class="arch-cell-title">Monitoring Stack</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-purple">Langfuse</span>
+          <span class="tag tag-purple">Prometheus</span>
+          <span class="tag tag-purple">Grafana</span>
+          <span class="tag tag-purple">OpenTelemetry</span>
+        </div>
+      </div>
+      <!-- Row 4: Data -->
+      <div class="arch-cell">
+        <div class="arch-cell-label">Vector Store</div>
+        <div class="arch-cell-title">Qdrant on GKE</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-green">Qdrant</span>
+          <span class="tag tag-green">Collections + Payloads</span>
+          <span class="tag tag-green">HNSW Index</span>
+        </div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-cell-label">Metadata Store</div>
+        <div class="arch-cell-title">PostgreSQL + pgvector</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-green">CloudSQL / AlloyDB</span>
+          <span class="tag tag-green">Users & Docs</span>
+          <span class="tag tag-green">Trace Metadata</span>
+        </div>
+      </div>
+      <div class="arch-cell">
+        <div class="arch-cell-label">Worker Layer</div>
+        <div class="arch-cell-title">Async Workers</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-orange">Embedding Worker</span>
+          <span class="tag tag-orange">Chunking Worker</span>
+          <span class="tag tag-orange">Eval Worker (RAGAS)</span>
+          <span class="tag tag-orange">GCP Pub/Sub Queue</span>
+        </div>
+      </div>
+      <!-- Row 5: Infra -->
+      <div class="arch-cell wide">
+        <div class="arch-cell-label">Infrastructure — GCP</div>
+        <div class="arch-cell-title">Cloud-Native Infra</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-red">GKE (Kubernetes)</span>
+          <span class="tag tag-red">Terraform IaC</span>
+          <span class="tag tag-red">Docker + Artifact Registry</span>
+          <span class="tag tag-red">Cloud Storage (GCS)</span>
+          <span class="tag tag-red">Secret Manager</span>
+          <span class="tag tag-red">IAM Workload Identity</span>
+          <span class="tag tag-red">Cloud Run (lightweight services)</span>
+        </div>
+      </div>
+      <!-- Row 6: CI/CD -->
+      <div class="arch-cell wide">
+        <div class="arch-cell-label">CI/CD + MLOps Layer</div>
+        <div class="arch-cell-title">Deployment & Model Lifecycle</div>
+        <div class="arch-cell-items">
+          <span class="tag tag-pink">GitHub Actions</span>
+          <span class="tag tag-pink">Helm Charts</span>
+          <span class="tag tag-pink">MLflow Model Registry</span>
+          <span class="tag tag-pink">Embedding Model Versioning</span>
+          <span class="tag tag-pink">Canary Deployments</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stack -->
+  <section class="section" id="stack">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <div>
+        <div class="section-title">Recommended Tech Stack</div>
+        <div class="section-desc">Why each tool — justified for MLOps/ML Engineering conversations</div>
+      </div>
+    </div>
+    <div class="stack-grid">
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-primary)"></span><span class="stack-card-category">Orchestration</span></div>
+        <h3>Prefect 2.x</h3>
+        <p>Orchestrates chunking, embedding, and eval pipelines as typed flows with retries, caching, and artifact tracking.</p>
+        <span class="why">→ Better DX than Airflow for ML; native Python; deployable on GKE</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-blue)"></span><span class="stack-card-category">Vector DB</span></div>
+        <h3>Qdrant</h3>
+        <p>Self-hosted on GKE. Supports dense + sparse vectors (hybrid search), filtering by payload, and named collections.</p>
+        <span class="why">→ More MLOps-impressive than Pinecone; you own the infra</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-purple)"></span><span class="stack-card-category">LLM Tracing</span></div>
+        <h3>Langfuse</h3>
+        <p>Traces every LLM call, token usage, latency, and RAG span. Self-hosted on Cloud Run. Supports evals and scoring.</p>
+        <span class="why">→ Open-source alternative to LangSmith; shows you understand LLM observability</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-purple)"></span><span class="stack-card-category">Metrics</span></div>
+        <h3>Prometheus + Grafana</h3>
+        <p>Prometheus scrapes service metrics (latency, error rate, embedding throughput). Grafana dashboards per service layer.</p>
+        <span class="why">→ Industry standard; shows you know the difference between tracing vs metrics</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-gold)"></span><span class="stack-card-category">Distributed Tracing</span></div>
+        <h3>OpenTelemetry</h3>
+        <p>Instruments all services with traces and spans. Exports to Langfuse (LLM) and Prometheus (infra). Single SDK.</p>
+        <span class="why">→ Shows you know the three pillars: logs, metrics, traces</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-orange)"></span><span class="stack-card-category">RAG Evaluation</span></div>
+        <h3>RAGAS</h3>
+        <p>Measures faithfulness, answer relevancy, context precision. Runs as an async Prefect worker after each retrieval batch.</p>
+        <span class="why">→ Shows you measure quality, not just ship the system</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-red,#a13544)"></span><span class="stack-card-category">Infrastructure</span></div>
+        <h3>Terraform + GKE</h3>
+        <p>All GCP resources defined as code: GKE cluster, CloudSQL, Pub/Sub topics, IAM, Artifact Registry, Workload Identity.</p>
+        <span class="why">→ IaC is non-negotiable for senior MLOps roles</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-notification)"></span><span class="stack-card-category">CI/CD</span></div>
+        <h3>GitHub Actions + Helm</h3>
+        <p>Build → test → push to Artifact Registry → helm upgrade on GKE. Separate pipelines per service.</p>
+        <span class="why">→ Shows deployment lifecycle understanding; Helm = Kubernetes packaging</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-success)"></span><span class="stack-card-category">Model Registry</span></div>
+        <h3>MLflow</h3>
+        <p>Track embedding model experiments, register chunking configurations as "models", log RAGAS scores per run.</p>
+        <span class="why">→ Connects ML lifecycle to the platform; key MLOps interview topic</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-primary)"></span><span class="stack-card-category">Messaging</span></div>
+        <h3>GCP Pub/Sub</h3>
+        <p>Decouples ingestion triggers from workers. Upload to GCS → Pub/Sub event → Prefect flow triggered → workers process.</p>
+        <span class="why">→ Event-driven architecture is core to scalable ML pipelines</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-blue)"></span><span class="stack-card-category">Embeddings</span></div>
+        <h3>Vertex AI Embeddings</h3>
+        <p>Use <code>text-embedding-004</code> from Google. Fall back to HuggingFace sentence-transformers for local testing.</p>
+        <span class="why">→ Shows you know managed vs self-hosted tradeoffs</span>
+      </div>
+
+      <div class="stack-card">
+        <div class="stack-card-header"><span class="stack-card-dot" style="background:var(--color-gold)"></span><span class="stack-card-category">Chunking</span></div>
+        <h3>Unstructured.io + LangChain Splitters</h3>
+        <p>Unstructured handles PDFs/HTML/DOCX parsing. LangChain RecursiveCharacterTextSplitter with configurable chunk_size + overlap.</p>
+        <span class="why">→ Multiple strategies = rich discussion in interviews</span>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Phases / Roadmap -->
+  <section class="section" id="phases">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <div>
+        <div class="section-title">Project Roadmap</div>
+        <div class="section-desc">6 phases — build layer by layer, each one deployable and demoable</div>
+      </div>
+    </div>
+    <div class="phases">
+
+      <!-- Phase 1 -->
+      <div class="phase-card open" id="p1">
+        <div class="phase-header" onclick="togglePhase('p1')">
+          <div class="phase-icon p1">P1</div>
+          <div class="phase-meta">
+            <div class="phase-name">Foundation — Infra as Code</div>
+            <div class="phase-sub">GCP bootstrap · VPC · GKE · Cloud SQL · service skeletons + Helm · Qdrant · Workload Identity</div>
+          </div>
+          <span class="phase-duration">~1.5 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.1 GCP bootstrap</strong> — create project, enable APIs, GCS remote state bucket, temporary bootstrap SA (migration path to OIDC in P5)</div><div class="task-tags"><span class="tag tag-red">GCP</span><span class="tag tag-red">Bootstrap</span><span class="tag tag-neutral">GCS state</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.2 Terraform layout</strong> — <code>infra/</code> scaffold, modules/, <code>environments/dev.tfvars</code>, GCS backend, validate + plan</div><div class="task-tags"><span class="tag tag-red">Terraform</span><span class="tag tag-red">IaC</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.2b Network foundation</strong> — VPC, regional subnets (alias IPs), Private Service Access for Cloud SQL, Cloud NAT, firewall rules</div><div class="task-tags"><span class="tag tag-red">VPC</span><span class="tag tag-red">PSA</span><span class="tag tag-red">Cloud NAT</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.3 GKE cluster</strong> — Standard cluster, VPC-native + private nodes, system/application/spot node pools, Workload Identity enabled</div><div class="task-tags"><span class="tag tag-red">GKE</span><span class="tag tag-red">Workload Identity</span><span class="tag tag-neutral">Node pools</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.4 Artifact Registry</strong> — Docker repo provisioned via Terraform, <code>{git-sha}</code> tagging scheme, local <code>docker push</code> auth</div><div class="task-tags"><span class="tag tag-red">Artifact Registry</span><span class="tag tag-neutral">Docker</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.5 Cloud SQL (PostgreSQL 15)</strong> — private IP via PSA, IAM database auth, automated backups; databases for <code>rag_metadata</code>, <code>langfuse</code>, <code>mlflow</code></div><div class="task-tags"><span class="tag tag-green">Cloud SQL</span><span class="tag tag-green">Private IP</span><span class="tag tag-green">IAM auth</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.6 Secret Manager + CSI</strong> — third-party secrets in GCP Secret Manager, mounted into pods via CSI driver (no K8s Secret objects)</div><div class="task-tags"><span class="tag tag-red">Secret Manager</span><span class="tag tag-red">CSI</span><span class="tag tag-red">Security</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.7 Service skeletons (Docker)</strong> — <code>api</code>, <code>ingestion</code>, <code>query</code>, <code>workers</code> with <code>/health</code>, <code>/ready</code>, structured logging, multi-stage builds, pushed to Artifact Registry</div><div class="task-tags"><span class="tag tag-neutral">Docker</span><span class="tag tag-primary">FastAPI</span><span class="tag tag-neutral">Probes</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.8 Helm charts</strong> — one chart per service with probes + ServiceAccount, <code>values-dev.yaml</code> / <code>values-prod.yaml</code> stubs, <code>helm lint</code> clean</div><div class="task-tags"><span class="tag tag-neutral">Helm</span><span class="tag tag-neutral">Kubernetes</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.9 Qdrant StatefulSet</strong> — deployed via Helm with <code>volumeClaimTemplates</code> for persistent storage, internal ClusterIP only (no public ingress in dev)</div><div class="task-tags"><span class="tag tag-green">Qdrant</span><span class="tag tag-neutral">StatefulSet</span><span class="tag tag-neutral">PVC</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text"><strong>1.10 Workload Identity bindings</strong> — per-service GCP SAs + <code>workloadIdentityUser</code> bindings to KSAs; Helm ServiceAccount annotations; no JSON keys in containers</div><div class="task-tags"><span class="tag tag-red">Workload Identity</span><span class="tag tag-red">IAM</span><span class="tag tag-red">Security</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>Why a separate <strong>1.2b Network</strong> step (VPC + PSA + Cloud NAT) is what unlocks private GKE nodes and private-IP Cloud SQL</li>
+              <li>Workload Identity (KSA → GSA) vs service-account JSON keys — least privilege + no key rotation</li>
+              <li>Terraform layout: remote state on GCS, modules per resource group, <code>dev.tfvars</code>/<code>prod.tfvars</code> for parity</li>
+              <li>StatefulSet vs Deployment for Qdrant — stable network identity + PVC per replica</li>
+              <li>Secret Manager + CSI driver vs K8s Secret objects (etcd) for third-party API keys</li>
+              <li>Multi-stage Docker builds + <code>{git-sha}</code> tagging for reproducible deploys</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 2 -->
+      <div class="phase-card" id="p2">
+        <div class="phase-header" onclick="togglePhase('p2')">
+          <div class="phase-icon p2">P2</div>
+          <div class="phase-meta">
+            <div class="phase-name">Ingestion Pipeline</div>
+            <div class="phase-sub">Pub/Sub → Prefect → Chunking → Embedding → Qdrant</div>
+          </div>
+          <span class="phase-duration">~2 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Set up GCS bucket with event notifications to Pub/Sub on object upload</div><div class="task-tags"><span class="tag tag-red">GCS</span><span class="tag tag-red">Pub/Sub</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Write Prefect flow: parse → chunk → embed → upsert to Qdrant</div><div class="task-tags"><span class="tag tag-gold">Prefect</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Implement 3 chunking strategies: fixed-size, recursive, semantic — A/B test them</div><div class="task-tags"><span class="tag tag-gold">Chunking</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Build async embedding worker: batch calls to Vertex AI text-embedding-004</div><div class="task-tags"><span class="tag tag-orange">Embeddings</span><span class="tag tag-orange">Async</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Store metadata (doc_id, chunk_id, source, timestamp) in PostgreSQL</div><div class="task-tags"><span class="tag tag-green">PostgreSQL</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Add dead-letter queue handling for failed Pub/Sub messages</div><div class="task-tags"><span class="tag tag-red">Pub/Sub DLQ</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>Event-driven ingestion vs polling — why async matters at scale</li>
+              <li>Chunking strategy tradeoffs (chunk size vs context window vs retrieval quality)</li>
+              <li>Idempotency in pipeline design (re-running without duplicates)</li>
+              <li>Batch vs real-time embedding and cost implications</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 3 -->
+      <div class="phase-card" id="p3">
+        <div class="phase-header" onclick="togglePhase('p3')">
+          <div class="phase-icon p3">P3</div>
+          <div class="phase-meta">
+            <div class="phase-name">Query & Retrieval Service</div>
+            <div class="phase-sub">FastAPI + Hybrid Search + Reranking + LLM</div>
+          </div>
+          <span class="phase-duration">~2 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Build FastAPI query endpoint with async handlers and request validation</div><div class="task-tags"><span class="tag tag-primary">FastAPI</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Implement hybrid search: dense (Qdrant) + sparse (BM25) with RRF fusion</div><div class="task-tags"><span class="tag tag-blue">Hybrid Search</span><span class="tag tag-blue">RRF</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Add CrossEncoder reranker (ms-marco-MiniLM) to re-score top-k results</div><div class="task-tags"><span class="tag tag-blue">Reranking</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Implement JWT-based auth + RBAC middleware (admin/user/readonly roles)</div><div class="task-tags"><span class="tag tag-primary">Auth</span><span class="tag tag-primary">RBAC</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Add streaming response support for LLM output (SSE)</div><div class="task-tags"><span class="tag tag-neutral">SSE</span><span class="tag tag-neutral">Streaming</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>Dense vs sparse retrieval — when each wins</li>
+              <li>Reciprocal Rank Fusion (RRF) vs weighted scores</li>
+              <li>Two-stage retrieval: recall (ANN) → precision (reranker)</li>
+              <li>RBAC design patterns in microservices</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 4 -->
+      <div class="phase-card" id="p4">
+        <div class="phase-header" onclick="togglePhase('p4')">
+          <div class="phase-icon p4">P4</div>
+          <div class="phase-meta">
+            <div class="phase-name">Observability Stack</div>
+            <div class="phase-sub">Langfuse + Prometheus + Grafana + OpenTelemetry</div>
+          </div>
+          <span class="phase-duration">~2 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Deploy self-hosted Langfuse on Cloud Run with CloudSQL backend</div><div class="task-tags"><span class="tag tag-purple">Langfuse</span><span class="tag tag-red">Cloud Run</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Instrument all LLM calls with Langfuse SDK: trace → span → generation</div><div class="task-tags"><span class="tag tag-purple">Tracing</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Deploy Prometheus + Grafana with kube-prometheus-stack Helm chart</div><div class="task-tags"><span class="tag tag-purple">Prometheus</span><span class="tag tag-purple">Grafana</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Expose custom metrics: /metrics endpoint per service (request latency P50/P95/P99)</div><div class="task-tags"><span class="tag tag-purple">Metrics</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Build Grafana dashboards: ingestion throughput, query latency, token usage, RAGAS scores</div><div class="task-tags"><span class="tag tag-purple">Dashboards</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Set up alerting rules: error rate > 1%, P99 latency > 3s, Qdrant disk > 80%</div><div class="task-tags"><span class="tag tag-purple">Alerting</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>Three pillars of observability: logs, metrics, traces — and which tool covers which</li>
+              <li>LLM-specific observability: token cost tracking, hallucination rate, RAG faithfulness</li>
+              <li>SLI/SLO/SLA definition for ML services</li>
+              <li>RED method (Rate, Errors, Duration) for service health</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 5 -->
+      <div class="phase-card" id="p5">
+        <div class="phase-header" onclick="togglePhase('p5')">
+          <div class="phase-icon p5">P5</div>
+          <div class="phase-meta">
+            <div class="phase-name">CI/CD + MLflow Registry</div>
+            <div class="phase-sub">GitHub Actions → Helm Deploy + Embedding Model Versioning</div>
+          </div>
+          <span class="phase-duration">~1.5 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Build GitHub Actions pipeline: lint → unit test → build → push → helm upgrade</div><div class="task-tags"><span class="tag tag-pink">CI/CD</span><span class="tag tag-neutral">GitHub Actions</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Register chunking configs and embedding models in MLflow Model Registry</div><div class="task-tags"><span class="tag tag-pink">MLflow</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Implement canary deployment: route 10% traffic to new embedding model, compare RAGAS</div><div class="task-tags"><span class="tag tag-pink">Canary</span><span class="tag tag-neutral">A/B Testing</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Add automated rollback trigger if RAGAS faithfulness drops below threshold</div><div class="task-tags"><span class="tag tag-pink">Auto Rollback</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>ML model versioning strategies in a RAG context (not just weights, but configs)</li>
+              <li>Canary vs blue-green vs rolling deployments</li>
+              <li>Automated quality gates in ML deployment pipelines</li>
+              <li>Why MLflow for RAG: tracking chunking experiments as model runs</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 6 -->
+      <div class="phase-card" id="p6">
+        <div class="phase-header" onclick="togglePhase('p6')">
+          <div class="phase-icon p6">P6</div>
+          <div class="phase-meta">
+            <div class="phase-name">Scaling & Production Hardening</div>
+            <div class="phase-sub">HPA, cost optimization, disaster recovery, load testing</div>
+          </div>
+          <span class="phase-duration">~2 weeks</span>
+          <svg class="phase-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="phase-body">
+          <div class="tasks">
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Configure HPA (Horizontal Pod Autoscaler) on query service based on CPU + custom metrics</div><div class="task-tags"><span class="tag tag-green">HPA</span><span class="tag tag-green">Scaling</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Set up GKE node auto-provisioning with spot instances for workers</div><div class="task-tags"><span class="tag tag-green">Cost Optimization</span><span class="tag tag-red">Spot Instances</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Load test with Locust: 100 concurrent users, validate latency SLOs hold</div><div class="task-tags"><span class="tag tag-orange">Locust</span><span class="tag tag-orange">Load Testing</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Implement Qdrant collection snapshots to GCS for disaster recovery</div><div class="task-tags"><span class="tag tag-blue">Backup</span><span class="tag tag-blue">DR</span></div></div></div>
+            <div class="task"><div class="task-check" onclick="toggleTask(this)"></div><div><div class="task-text">Write Architecture Decision Records (ADRs) for key design choices</div><div class="task-tags"><span class="tag tag-neutral">Documentation</span><span class="tag tag-neutral">ADR</span></div></div></div>
+          </div>
+          <div class="phase-learn">
+            <div class="phase-learn-title">🎓 You'll be able to talk about:</div>
+            <ul>
+              <li>Kubernetes autoscaling: HPA vs VPA vs KEDA (event-driven)</li>
+              <li>Cost vs reliability tradeoff with spot/preemptible nodes</li>
+              <li>Chaos engineering basics: what happens if Qdrant pod dies?</li>
+              <li>Writing ADRs: why this is a sign of a senior engineer</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Interview Topics -->
+  <section class="section" id="interview">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <div>
+        <div class="section-title">Interview Talking Points</div>
+        <div class="section-desc">Questions this project prepares you to answer confidently</div>
+      </div>
+    </div>
+    <div class="interview-grid">
+      <div class="interview-card">
+        <h3>🏗 System Design</h3>
+        <div class="interview-q">How would you scale the ingestion pipeline to handle 1M docs/day?</div>
+        <div class="interview-q">Why Qdrant over Pinecone? What are the tradeoffs?</div>
+        <div class="interview-q">How do you handle duplicate documents in the vector store?</div>
+      </div>
+      <div class="interview-card">
+        <h3>🔭 Observability</h3>
+        <div class="interview-q">What's the difference between tracing, metrics, and logging?</div>
+        <div class="interview-q">How do you monitor an LLM system in production?</div>
+        <div class="interview-q">How would you detect RAG quality degradation automatically?</div>
+      </div>
+      <div class="interview-card">
+        <h3>🚀 MLOps & CI/CD</h3>
+        <div class="interview-q">How do you version an embedding model change? What's the rollout plan?</div>
+        <div class="interview-q">What's a canary deployment and when would you use it?</div>
+        <div class="interview-q">How do you test an ML pipeline? What does "testing" mean here?</div>
+      </div>
+      <div class="interview-card">
+        <h3>☸️ Kubernetes</h3>
+        <div class="interview-q">What's the difference between a Deployment and a StatefulSet?</div>
+        <div class="interview-q">How does HPA work? What metrics do you autoscale on for a query service?</div>
+        <div class="interview-q">How do you handle secrets in GKE without storing them in Git?</div>
+      </div>
+      <div class="interview-card">
+        <h3>📐 RAG Architecture</h3>
+        <div class="interview-q">Why use hybrid search instead of pure dense retrieval?</div>
+        <div class="interview-q">What is a reranker and where does it fit in the pipeline?</div>
+        <div class="interview-q">How would you improve retrieval quality without changing the LLM?</div>
+      </div>
+      <div class="interview-card">
+        <h3>💰 Cost & Reliability</h3>
+        <div class="interview-q">How do you optimize GCP costs for an ML workload?</div>
+        <div class="interview-q">What's your disaster recovery plan if Qdrant loses data?</div>
+        <div class="interview-q">How do you define SLOs for a RAG system?</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Built as an MLOps portfolio project — focus on platform engineering over RAG accuracy</footer>
+
+<script>
+(function(){
+  const t=document.querySelector('[data-theme-toggle]'),r=document.documentElement;
+  let d=r.getAttribute('data-theme')||'dark';
+  t&&t.addEventListener('click',()=>{
+    d=d==='dark'?'light':'dark';
+    r.setAttribute('data-theme',d);
+  });
+})();
+
+function togglePhase(id){
+  const card=document.getElementById(id);
+  card.classList.toggle('open');
+}
+
+function toggleTask(el){
+  el.classList.toggle('done');
+}
+</script>
+</body>
+</html>

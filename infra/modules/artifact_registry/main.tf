@@ -1,1 +1,7 @@
-# Artifact Registry resources — Phase 1.4
+resource "google_artifact_registry_repository" "docker" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "rag-platform"
+  format        = "DOCKER"
+  description   = "Docker images for Turbo-RAG platform services"
+}

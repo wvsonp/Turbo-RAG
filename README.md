@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-19**. Phase 1 in progress (1.1–1.2b done; 1.3 GKE apply next).
+Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.3 done; 1.4 Artifact Registry next).
 
 ### Phase summary
 
@@ -26,8 +26,8 @@ Last updated: **2026-05-19**. Phase 1 in progress (1.1–1.2b done; 1.3 GKE appl
 | 1.1 | GCP project bootstrap | **Done** | [1.1](docs/plan/phase-1-foundation/1.1-gcp-bootstrap.md) |
 | 1.2 | Terraform project structure | **Done** | [1.2](docs/plan/phase-1-foundation/1.2-terraform-layout.md) |
 | 1.2b | Network (VPC, PSA, NAT) | **Done** | [1.2b](docs/plan/phase-1-foundation/1.2b-network-foundation.md) |
-| 1.3 | GKE cluster | **In progress** | [1.3](docs/plan/phase-1-foundation/1.3-gke-cluster.md) |
-| 1.4 | Artifact Registry | Scaffold | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
+| 1.3 | GKE cluster | **Done** | [1.3](docs/plan/phase-1-foundation/1.3-gke-cluster.md) |
+| 1.4 | Artifact Registry | **In progress** | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
 | 1.5 | CloudSQL (PostgreSQL) | Not started | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
 | 1.6 | Secret Manager | Not started | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
 | 1.7 | Dockerize services (skeleton) | Not started | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
@@ -41,5 +41,5 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **`terraform apply`** for GKE (dev) on custom VPC — [1.3 plan](docs/plan/phase-1-foundation/1.3-gke-cluster.md)
-2. Wire **Artifact Registry** (1.4), then Cloud SQL + Secret Manager (1.5–1.6; PSA ready)
+1. Wire and apply **Artifact Registry** (1.4) so service images have a managed Docker repository.
+2. Continue with Cloud SQL + Secret Manager (1.5–1.6; PSA ready), then service skeletons and Helm.

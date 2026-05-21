@@ -19,3 +19,10 @@ module "gke" {
   pods_secondary_range     = module.network.pods_secondary_range_name
   services_secondary_range = module.network.services_secondary_range_name
 }
+
+module "artifact_registry" {
+  source = "./modules/artifact_registry"
+
+  project_id = var.project_id
+  region     = var.region
+}

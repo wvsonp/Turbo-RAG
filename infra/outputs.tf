@@ -45,3 +45,13 @@ output "network_psa_range" {
   description = "CIDR reserved for Private Service Access (Cloud SQL)"
   value       = module.network.psa_allocated_range
 }
+
+output "artifact_registry_repository_id" {
+  description = "Docker Artifact Registry repository ID"
+  value       = module.artifact_registry.repository_id
+}
+
+output "artifact_registry_url" {
+  description = "Base URL for service images: {url}/{service}:{git-sha}"
+  value       = module.artifact_registry.repository_url
+}

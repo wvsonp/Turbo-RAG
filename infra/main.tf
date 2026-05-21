@@ -26,3 +26,20 @@ module "artifact_registry" {
   project_id = var.project_id
   region     = var.region
 }
+
+module "cloudsql" {
+  source = "./modules/cloudsql"
+
+  project_id  = var.project_id
+  region      = var.region
+  environment = var.environment
+
+  network_self_link = module.network.network_self_link
+
+  tier                = var.cloudsql_tier
+  availability_type   = var.cloudsql_availability_type
+  deletion_protection = var.cloudsql_deletion_protection
+  enable_pitr         = var.cloudsql_enable_pitr
+
+  depends_on = [module.network]
+}

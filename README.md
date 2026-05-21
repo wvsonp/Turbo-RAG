@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.3 done; 1.4 Artifact Registry next).
+Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.5 done; 1.6 Secret Manager next).
 
 ### Phase summary
 
@@ -27,8 +27,8 @@ Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.3 done; 1.4 Artifact 
 | 1.2 | Terraform project structure | **Done** | [1.2](docs/plan/phase-1-foundation/1.2-terraform-layout.md) |
 | 1.2b | Network (VPC, PSA, NAT) | **Done** | [1.2b](docs/plan/phase-1-foundation/1.2b-network-foundation.md) |
 | 1.3 | GKE cluster | **Done** | [1.3](docs/plan/phase-1-foundation/1.3-gke-cluster.md) |
-| 1.4 | Artifact Registry | **In progress** | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
-| 1.5 | CloudSQL (PostgreSQL) | Not started | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
+| 1.4 | Artifact Registry | **Done** | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
+| 1.5 | CloudSQL (PostgreSQL) | **Done** | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
 | 1.6 | Secret Manager | Not started | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
 | 1.7 | Dockerize services (skeleton) | Not started | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
 | 1.8 | Helm charts | Not started | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
@@ -41,5 +41,5 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. Wire and apply **Artifact Registry** (1.4) so service images have a managed Docker repository.
-2. Continue with Cloud SQL + Secret Manager (1.5–1.6; PSA ready), then service skeletons and Helm.
+1. Implement **Secret Manager + CSI** (1.6) for runtime secrets.
+2. Add service Docker skeletons (1.7), Helm charts (1.8), Qdrant (1.9), and Workload Identity bindings (1.10).

@@ -87,3 +87,21 @@ terraform validate
 terraform plan -var-file=environments/dev.tfvars
 ```
 
+## 2026-05-22 — Quick dev reset runbook
+
+**What:** Added root `quick-dev-reset.md` with ordered commands to recreate the current dev platform baseline after Terraform destroy: APIs, remote state bootstrap check, Terraform init, network, GKE, Artifact Registry, Cloud SQL, and validation.
+
+**Why:** A compact reset path makes the dev-to-current-state migration repeatable, so future work can resume at the active Phase 1.6 Secret Manager step after teardown or cost-control cleanup.
+
+**Commands:**
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform validate
+terraform apply -var-file=environments/dev.tfvars -target=module.network
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+terraform apply -var-file=environments/dev.tfvars -target=module.artifact_registry
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+terraform plan -var-file=environments/dev.tfvars
+```
+

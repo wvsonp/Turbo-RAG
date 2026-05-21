@@ -1,0 +1,183 @@
+# Quick Dev Reset
+
+Use this when the dev GCP platform was destroyed and you want to recreate the
+current project state so work can continue at **Phase 1.6 Secret Manager**.
+
+Current target state:
+
+- Project: `turbo-rag`
+- Region: `us-central1`
+- Terraform env: `infra/environments/dev.tfvars`
+- Recreated stack: network, GKE, Artifact Registry, Cloud SQL PostgreSQL
+- Next task after reset: `docs/plan/phase-1-foundation/1.6-secret-manager.md`
+
+## 0. Assumptions
+
+Run commands from WSL with `gcloud`, Terraform, `kubectl`, and Docker available.
+The Terraform state bucket is bootstrap infrastructure and should usually exist
+outside normal platform teardown.
+
+If the platform was deleted manually in the GCP Console instead of with
+Terraform, first inspect state carefully before applying. The commands below
+assume a normal Terraform destroy or a clean state.
+
+## 1. Authenticate and Select the Project
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project turbo-rag
+gcloud config set compute/region us-central1
+```
+
+## 2. Ensure Required APIs Are Enabled
+
+```bash
+gcloud services enable \
+  container.googleapis.com \
+  compute.googleapis.com \
+  servicenetworking.googleapis.com \
+  sqladmin.googleapis.com \
+  pubsub.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
+  storage.googleapis.com \
+  aiplatform.googleapis.com \
+  --project=turbo-rag
+```
+
+## 3. Verify Remote State Bootstrap
+
+```bash
+gcloud storage buckets describe gs://rag-platform-tf-state --project=turbo-rag
+```
+
+If the bucket is missing, recreate it before `terraform init`:
+
+```bash
+gcloud storage buckets create gs://rag-platform-tf-state \
+  --project=turbo-rag \
+  --location=us-central1 \
+  --uniform-bucket-level-access
+```
+
+## 4. Initialize Terraform
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform validate
+```
+
+## 5. Recreate Dev Infrastructure in Dependency Order
+
+Network comes first because both GKE and Cloud SQL depend on the VPC, subnet,
+NAT, and Private Service Access peering.
+
+```bash
+terraform apply -var-file=environments/dev.tfvars -target=module.network
+```
+
+Then recreate GKE:
+
+```bash
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+```
+
+Then recreate Artifact Registry:
+
+```bash
+terraform apply -var-file=environments/dev.tfvars -target=module.artifact_registry
+```
+
+Then recreate Cloud SQL:
+
+```bash
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+```
+
+Finally run a full plan to confirm no remaining drift:
+
+```bash
+terraform plan -var-file=environments/dev.tfvars
+```
+
+Expected key outputs after reset:
+
+- `artifact_registry_url = "us-central1-docker.pkg.dev/turbo-rag/rag-platform"`
+- `cloudsql_connection_name = "turbo-rag:us-central1:rag-platform-dev"`
+- `cloudsql_private_ip` allocated from `10.16.0.0/16`
+- `gke_cluster_name = "rag-platform-dev"`
+
+## 6. Restore Local GKE Access
+
+```bash
+gcloud container clusters get-credentials rag-platform-dev \
+  --region us-central1 \
+  --project turbo-rag
+
+kubectl get nodes -L cloud.google.com/gke-nodepool
+```
+
+Expected: Ready nodes in the `system` and `application` pools. The `worker`
+pool can be scaled to zero in dev.
+
+## 7. Validate Artifact Registry
+
+```bash
+gcloud artifacts repositories describe rag-platform \
+  --location=us-central1 \
+  --project=turbo-rag
+
+gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+docker pull hello-world:latest
+docker tag hello-world:latest \
+  us-central1-docker.pkg.dev/turbo-rag/rag-platform/smoke-test:latest
+docker push us-central1-docker.pkg.dev/turbo-rag/rag-platform/smoke-test:latest
+
+gcloud artifacts docker images list \
+  us-central1-docker.pkg.dev/turbo-rag/rag-platform \
+  --include-tags
+```
+
+## 8. Validate Cloud SQL
+
+```bash
+gcloud sql instances describe rag-platform-dev --project=turbo-rag
+gcloud sql databases list --instance=rag-platform-dev --project=turbo-rag
+```
+
+Expected databases:
+
+- `rag_metadata`
+- `langfuse`
+- `mlflow`
+
+Validate private network reachability from GKE:
+
+```bash
+CLOUDSQL_PRIVATE_IP="$(terraform output -raw cloudsql_private_ip)"
+
+kubectl run cloudsql-smoke --rm -i --restart=Never \
+  --env="CLOUDSQL_PRIVATE_IP=${CLOUDSQL_PRIVATE_IP}" \
+  --image=postgres:15-alpine \
+  --command -- sh -c 'nc -zv "$CLOUDSQL_PRIVATE_IP" 5432'
+```
+
+## 9. Continue Development
+
+After the reset, continue with:
+
+```bash
+docs/plan/phase-1-foundation/1.6-secret-manager.md
+```
+
+Useful status docs:
+
+- `docs/STATUS.md`
+- `README.md`
+- `docs/history/IaC.md`
+- `docs/history/gke.md`
+- `docs/history/artifact_registry.md`
+- `docs/history/cloudsql.md`

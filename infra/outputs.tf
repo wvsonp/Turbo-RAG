@@ -55,3 +55,23 @@ output "artifact_registry_url" {
   description = "Base URL for service images: {url}/{service}:{git-sha}"
   value       = module.artifact_registry.repository_url
 }
+
+output "cloudsql_instance_name" {
+  description = "Cloud SQL PostgreSQL instance name"
+  value       = module.cloudsql.instance_name
+}
+
+output "cloudsql_connection_name" {
+  description = "Connection name for Cloud SQL Auth Proxy and Helm"
+  value       = module.cloudsql.connection_name
+}
+
+output "cloudsql_private_ip" {
+  description = "Private IP of the Cloud SQL instance (PSA range)"
+  value       = module.cloudsql.private_ip_address
+}
+
+output "cloudsql_database_names" {
+  description = "Platform databases on the instance"
+  value       = module.cloudsql.database_names
+}

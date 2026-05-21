@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.5 done; 1.6 Secret Manager next).
+Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.6 done; 1.7 service skeletons next).
 
 ### Phase summary
 
@@ -29,7 +29,7 @@ Last updated: **2026-05-21**. Phase 1 in progress (1.1–1.5 done; 1.6 Secret Ma
 | 1.3 | GKE cluster | **Done** | [1.3](docs/plan/phase-1-foundation/1.3-gke-cluster.md) |
 | 1.4 | Artifact Registry | **Done** | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
 | 1.5 | CloudSQL (PostgreSQL) | **Done** | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
-| 1.6 | Secret Manager | Not started | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
+| 1.6 | Secret Manager | **Done** | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
 | 1.7 | Dockerize services (skeleton) | Not started | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
 | 1.8 | Helm charts | Not started | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
 | 1.9 | Deploy Qdrant on GKE | Not started | [1.9](docs/plan/phase-1-foundation/1.9-qdrant.md) |
@@ -41,5 +41,5 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. Implement **Secret Manager + CSI** (1.6) for runtime secrets.
-2. Add service Docker skeletons (1.7), Helm charts (1.8), Qdrant (1.9), and Workload Identity bindings (1.10).
+1. Add **service Docker skeletons** (1.7) and push images to Artifact Registry.
+2. Helm charts (1.8), Qdrant (1.9), and per-service Workload Identity bindings (1.10).

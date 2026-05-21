@@ -10,7 +10,7 @@
 | 1.3 | [1.3-gke-cluster.md](1.3-gke-cluster.md) | Done (dev) |
 | 1.4 | [1.4-artifact-registry.md](1.4-artifact-registry.md) | Done (dev) |
 | 1.5 | [1.5-cloudsql.md](1.5-cloudsql.md) | Done (dev) |
-| 1.6 | [1.6-secret-manager.md](1.6-secret-manager.md) | Not started |
+| 1.6 | [1.6-secret-manager.md](1.6-secret-manager.md) | Done (dev) |
 | 1.7 | [1.7-service-skeletons.md](1.7-service-skeletons.md) | Not started |
 | 1.8 | [1.8-helm-charts.md](1.8-helm-charts.md) | Not started |
 | 1.9 | [1.9-qdrant.md](1.9-qdrant.md) | Not started |

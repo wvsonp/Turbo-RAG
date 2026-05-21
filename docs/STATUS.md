@@ -14,12 +14,15 @@
 - **1.3 GKE** — Standard dev cluster applied and validated on custom VPC with VPC-native networking, private nodes, Workload Identity, and Ready system/application nodes (see `docs/history/gke.md`)
 - **1.4 Artifact Registry** — `rag-platform` Docker repo in Terraform; dev apply clean; `smoke-test` image present; outputs `artifact_registry_url` for Helm/CI ([plan](plan/phase-1-foundation/1.4-artifact-registry.md), [`docs/history/artifact_registry.md`](history/artifact_registry.md))
 - **1.5 Cloud SQL** — PostgreSQL 15 `rag-platform-dev` with private IP only, IAM auth flag, backups, databases `rag_metadata` / `langfuse` / `mlflow`; GKE pod reachability smoke test ([plan](plan/phase-1-foundation/1.5-cloudsql.md), [`docs/history/cloudsql.md`](history/cloudsql.md))
+- **1.6 Secret Manager** — Secret container `openai-api-key`, GCP SA `secret-accessor-dev`, WI + `secretAccessor` IAM; CSI drivers (kubectl); smoke pod mounts `/var/secrets/openai-api-key` via `platform-secrets` ([plan](plan/phase-1-foundation/1.6-secret-manager.md), [`docs/history/secret_manager.md`](history/secret_manager.md))
 - **Quick dev reset runbook** — Added root [`quick-dev-reset.md`](../quick-dev-reset.md) with ordered commands to recreate the current dev platform state after Terraform destroy
+- **Rule update for reset docs** — Updated lifecycle/documentation rules so `quick-dev-reset.md` stays current when infra reset requirements change
+- **Project status command** — Added `.cursor/commands/project-status.md` to summarize completed work, next task, and goal from this status file
 
 ## In progress
 
-- **1.6 Secret Manager** — CSI driver integration and secret scaffolding ([plan](plan/phase-1-foundation/1.6-secret-manager.md))
-- **1.7+** — Service skeletons, Helm, Qdrant, Workload Identity bindings ([phase-1 README](plan/phase-1-foundation/README.md))
+- **1.7 Service skeletons** — Docker images for api / ingestion / query / workers ([plan](plan/phase-1-foundation/1.7-service-skeletons.md))
+- **1.8+** — Helm charts, Qdrant, full Workload Identity per service ([phase-1 README](plan/phase-1-foundation/README.md))
 
 ## Blocked
 

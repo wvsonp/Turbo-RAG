@@ -43,3 +43,10 @@ module "cloudsql" {
 
   depends_on = [module.network]
 }
+
+module "secret_manager" {
+  source = "./modules/secret_manager"
+
+  project_id  = var.project_id
+  environment = var.environment
+}

@@ -29,3 +29,11 @@
 **What was tried:** Verified node pool existence with `gcloud container node-pools list` and described the application pool.
 **Fix:** Added `initial_node_count = 1` to the application node pool and re-applied; `kubectl get nodes -L cloud.google.com/gke-nodepool` showed application nodes as `Ready`.
 **Rule added:** _(none)_
+
+## [Phase 1] Secret Manager CSI — Helm not installed locally
+**Date:** 2026-05-22
+**What happened:** After `gcloud container clusters get-credentials`, CSI driver install failed because `helm` is not on the WSL PATH.
+**Symptoms:** `Command 'helm' not found, but can be installed with: sudo snap install helm`
+**What was tried:** Helm `upgrade --install` for base CSI driver and GCP provider
+**Fix:** Install Helm (curl script) **or** install both drivers with `kubectl apply` from upstream release manifests (see `docs/history/secret_manager.md`).
+**Rule added:** _(none)_

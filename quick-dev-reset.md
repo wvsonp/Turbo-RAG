@@ -1,19 +1,21 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 1.6 Secret Manager**.
+current project state so work can continue at **Phase 1.7 Service skeletons**.
 
 Current target state:
 
 - Project: `turbo-rag`
 - Region: `us-central1`
 - Terraform env: `infra/environments/dev.tfvars`
-- Recreated stack: network, GKE, Artifact Registry, Cloud SQL PostgreSQL
-- Next task after reset: `docs/plan/phase-1-foundation/1.6-secret-manager.md`
+- Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA)
+- Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
+- Next task after reset: `docs/plan/phase-1-foundation/1.7-service-skeletons.md`
 
 ## 0. Assumptions
 
 Run commands from WSL with `gcloud`, Terraform, `kubectl`, and Docker available.
+Helm is optional (CSI drivers can be installed with `kubectl` only; see section 9).
 The Terraform state bucket is bootstrap infrastructure and should usually exist
 outside normal platform teardown.
 
@@ -108,6 +110,7 @@ Expected key outputs after reset:
 - `cloudsql_connection_name = "turbo-rag:us-central1:rag-platform-dev"`
 - `cloudsql_private_ip` allocated from `10.16.0.0/16`
 - `gke_cluster_name = "rag-platform-dev"`
+- `secret_accessor_gcp_sa_email` (e.g. `secret-accessor-dev@turbo-rag.iam.gserviceaccount.com`)
 
 ## 6. Restore Local GKE Access
 
@@ -165,13 +168,43 @@ kubectl run cloudsql-smoke --rm -i --restart=Never \
   --command -- sh -c 'nc -zv "$CLOUDSQL_PRIVATE_IP" 5432'
 ```
 
-## 9. Continue Development
+## 9. Secret Manager + CSI (Terraform + cluster)
+
+Apply secret containers and accessor SA:
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.secret_manager
+```
+
+Add secret values manually (never commit; repeat per secret as needed):
+
+```bash
+echo -n 'your-dev-value' | gcloud secrets versions add openai-api-key \
+  --project=turbo-rag --data-file=-
+```
+
+Install CSI drivers (kubectl; no Helm required):
+
+```bash
+CSI_TAG=v1.4.7
+BASE="https://raw.githubusercontent.com/kubernetes-sigs/secrets-store-csi-driver/${CSI_TAG}/deploy"
+kubectl apply -f "${BASE}/rbac-secretproviderclass.yaml"
+kubectl apply -f "${BASE}/csidriver.yaml"
+kubectl apply -f "${BASE}/secrets-store.csi.x-k8s.io_secretproviderclasses.yaml"
+kubectl apply -f "${BASE}/secrets-store.csi.x-k8s.io_secretproviderclasspodstatuses.yaml"
+kubectl apply -f "${BASE}/secrets-store-csi-driver.yaml"
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/secrets-store-csi-driver-provider-gcp/main/deploy/provider-gcp-plugin.yaml
+kubectl wait --for=condition=ready pod -l app=csi-secrets-store -n kube-system --timeout=300s
+```
+
+Optional smoke test (see `k8s/secret-manager-csi/` and `docs/history/secret_manager.md`).
+
+## 10. Continue Development
 
 After the reset, continue with:
 
-```bash
-docs/plan/phase-1-foundation/1.6-secret-manager.md
-```
+[`docs/plan/phase-1-foundation/1.7-service-skeletons.md`](docs/plan/phase-1-foundation/1.7-service-skeletons.md)
 
 Useful status docs:
 
@@ -181,3 +214,4 @@ Useful status docs:
 - `docs/history/gke.md`
 - `docs/history/artifact_registry.md`
 - `docs/history/cloudsql.md`
+- `docs/history/secret_manager.md`

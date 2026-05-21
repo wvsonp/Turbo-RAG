@@ -75,3 +75,13 @@ output "cloudsql_database_names" {
   description = "Platform databases on the instance"
   value       = module.cloudsql.database_names
 }
+
+output "secret_manager_secret_ids" {
+  description = "Secret Manager secret container IDs (values added outside Terraform)"
+  value       = module.secret_manager.secret_ids
+}
+
+output "secret_accessor_gcp_sa_email" {
+  description = "GCP SA for pods that mount secrets via CSI + Workload Identity"
+  value       = module.secret_manager.secret_accessor_email
+}

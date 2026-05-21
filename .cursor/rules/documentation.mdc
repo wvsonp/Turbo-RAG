@@ -13,6 +13,7 @@ Use this when writing or updating project docs. **When** to update is defined in
 |-----|----------|---------|
 | `docs/STATUS.md` | Agents | Living task board: completed, in progress, blocked |
 | `README.md` | Visitors / you | High-level phase progress (tables, next steps) |
+| `quick-dev-reset.md` | Agents / you | Ordered commands to recreate the current dev platform after Terraform destroy |
 | `docs/history/<component>.md` | Learning | Per-area steps, why, working commands |
 | `docs/history/lessons.md` | Learning | Wisdom and gotchas accumulated over time |
 | `docs/FAILURES.md` | Debugging | Full failure post-mortems |
@@ -68,3 +69,4 @@ See `log-failure.mdc` for the required template.
 
 - **STATUS** — precise agent state (bullets, blockers, current step)
 - **README** — same progress in table form for a quick public read; update on sub-phase step completion (1.3, 1.4, …), not every tiny commit
+- **quick-dev-reset** — operational rebuild path; update when infra work changes what must be recreated, validation commands, required APIs/tools, outputs, or the next resumable roadmap step

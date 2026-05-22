@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 1.7 Service skeletons**.
+current project state so work can continue at **Phase 1.8 Helm charts**.
 
 Current target state:
 
@@ -10,7 +10,7 @@ Current target state:
 - Terraform env: `infra/environments/dev.tfvars`
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
-- Next task after reset: `docs/plan/phase-1-foundation/1.7-service-skeletons.md`
+- Next task after reset: `docs/plan/phase-1-foundation/1.8-helm-charts.md`
 
 ## 0. Assumptions
 
@@ -202,9 +202,21 @@ Optional smoke test (see `k8s/secret-manager-csi/` and `docs/history/secret_mana
 
 ## 10. Continue Development
 
-After the reset, continue with:
+After the reset, rebuild service images and push to Artifact Registry:
 
-[`docs/plan/phase-1-foundation/1.7-service-skeletons.md`](docs/plan/phase-1-foundation/1.7-service-skeletons.md)
+```bash
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+SHA=$(git rev-parse --short HEAD)
+for svc in api ingestion query workers; do
+  docker build -t "${svc}:local" "services/${svc}"
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+done
+```
+
+Then continue with:
+
+[`docs/plan/phase-1-foundation/1.8-helm-charts.md`](docs/plan/phase-1-foundation/1.8-helm-charts.md)
 
 Useful status docs:
 

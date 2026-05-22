@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-22  
+**Last updated:** 2026-05-22 (1.7 done)  
 **Current phase:** 1 — Foundation (Infra as Code)  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -18,11 +18,11 @@
 - **Quick dev reset runbook** — Added root [`quick-dev-reset.md`](../quick-dev-reset.md) with ordered commands to recreate the current dev platform state after Terraform destroy
 - **Rule update for reset docs** — Updated lifecycle/documentation rules so `quick-dev-reset.md` stays current when infra reset requirements change
 - **Project status command** — Added `.cursor/commands/project-status.md` to summarize completed work, next task, and goal from this status file
+- **1.7 Service skeletons** — Minimal FastAPI skeleton (health/ready/metrics) in `services/{api,ingestion,query,workers}/`; multi-stage Dockerfiles with non-root user; images pushed to `us-central1-docker.pkg.dev/turbo-rag/rag-platform` with `:{git-sha}` tag ([plan](plan/phase-1-foundation/1.7-service-skeletons.md), [`docs/history/service_skeletons.md`](history/service_skeletons.md))
 
 ## In progress
 
-- **1.7 Service skeletons** — Docker images for api / ingestion / query / workers ([plan](plan/phase-1-foundation/1.7-service-skeletons.md))
-- **1.8+** — Helm charts, Qdrant, full Workload Identity per service ([phase-1 README](plan/phase-1-foundation/README.md))
+- **1.8 Helm charts** — Helm chart per service, Qdrant, per-service Workload Identity bindings ([phase-1 README](plan/phase-1-foundation/README.md))
 
 ## Blocked
 

@@ -50,3 +50,14 @@ module "secret_manager" {
   project_id  = var.project_id
   environment = var.environment
 }
+
+module "iam" {
+  source = "./modules/iam"
+
+  project_id             = var.project_id
+  environment            = var.environment
+  secret_ids             = module.secret_manager.secret_ids
+  cloudsql_instance_name = module.cloudsql.instance_name
+
+  depends_on = [module.secret_manager, module.cloudsql]
+}

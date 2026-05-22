@@ -6,14 +6,14 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.9 done; 1.10 Workload Identity next).
+Last updated: **2026-05-22**. Phase 1 complete; Phase 2.1 (GCS + Pub/Sub) next.
 
 ### Phase summary
 
 | Phase | Focus | Status |
 | ----- | ----- | ------ |
-| 1 | Foundation — Infra as Code | **In progress** |
-| 2 | Ingestion pipeline | Blocked (Phase 1) |
+| 1 | Foundation — Infra as Code | **Done** (dev) |
+| 2 | Ingestion pipeline | **In progress** |
 | 3 | Query & retrieval service | Blocked (Phase 1) |
 | 4 | Observability stack | Blocked (Phase 1) |
 | 5 | CI/CD + MLflow registry | Blocked (Phase 1) |
@@ -33,7 +33,7 @@ Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.9 done; 1.10 Workload
 | 1.7 | Dockerize services (skeleton) | **Done** | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
 | 1.8 | Helm charts | **Done** | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
 | 1.9 | Deploy Qdrant on GKE | **Done** | [1.9](docs/plan/phase-1-foundation/1.9-qdrant.md) |
-| 1.10 | Workload Identity bindings | Not started | [1.10](docs/plan/phase-1-foundation/1.10-workload-identity.md) |
+| 1.10 | Workload Identity bindings | **Done** | [1.10](docs/plan/phase-1-foundation/1.10-workload-identity.md) |
 
 ### Phases 2–6
 
@@ -41,4 +41,4 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **Workload Identity bindings** (1.10) — per-service GCP SAs and Helm SA annotations.
+1. **GCS bucket + Pub/Sub** (2.1) — upload notifications for the ingestion pipeline; add GCS/Pub/Sub IAM to ingestion/workers SAs when resources exist.

@@ -4,4 +4,5 @@ image:
 replicaCount: 2
 
 serviceAccount:
-  annotations: {}
+  annotations:
+    iam.gke.io/gcp-service-account: ingestion-sa-prod@turbo-rag.iam.gserviceaccount.com

@@ -14,6 +14,6 @@
 | 1.7 | [1.7-service-skeletons.md](1.7-service-skeletons.md) | Done |
 | 1.8 | [1.8-helm-charts.md](1.8-helm-charts.md) | Done |
 | 1.9 | [1.9-qdrant.md](1.9-qdrant.md) | Done (dev) |
-| 1.10 | [1.10-workload-identity.md](1.10-workload-identity.md) | Not started |
+| 1.10 | [1.10-workload-identity.md](1.10-workload-identity.md) | Done (dev) |
 
 **Phase done when:** All acceptance criteria in 1.1–1.10 pass in **dev**; prod tfvars documented but apply optional until Phase 5 CI.

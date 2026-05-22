@@ -2,5 +2,5 @@ image:
   tag: "32ef3b6"
 
 serviceAccount:
-  annotations: {}
-  # 1.10: iam.gke.io/gcp-service-account: query-sa@turbo-rag.iam.gserviceaccount.com
+  annotations:
+    iam.gke.io/gcp-service-account: query-sa-dev@turbo-rag.iam.gserviceaccount.com

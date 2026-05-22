@@ -85,3 +85,13 @@ output "secret_accessor_gcp_sa_email" {
   description = "GCP SA for pods that mount secrets via CSI + Workload Identity"
   value       = module.secret_manager.secret_accessor_email
 }
+
+output "iam_service_account_emails" {
+  description = "Per-service GCP SA emails for Workload Identity (api, ingestion, query, workers)"
+  value       = module.iam.service_account_emails
+}
+
+output "iam_k8s_service_account_annotations" {
+  description = "Helm serviceAccount.annotations values per service"
+  value       = module.iam.k8s_service_account_annotations
+}

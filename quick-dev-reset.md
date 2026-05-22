@@ -1,16 +1,17 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 1.10 Workload Identity**.
+current project state so work can continue at **Phase 2.1 GCS + Pub/Sub**.
 
 Current target state:
 
 - Project: `turbo-rag`
 - Region: `us-central1`
 - Terraform env: `infra/environments/dev.tfvars`
-- Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA)
+- Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), per-service Workload Identity (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
-- Next task after reset: `docs/plan/phase-1-foundation/1.10-workload-identity.md`
+- Helm: api, ingestion, query, workers (WI annotations), qdrant
+- Next task after reset: `docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md`
 
 ## 0. Assumptions
 
@@ -200,6 +201,16 @@ kubectl wait --for=condition=ready pod -l app=csi-secrets-store -n kube-system -
 
 Optional smoke test (see `k8s/secret-manager-csi/` and `docs/history/secret_manager.md`).
 
+## 9b. Workload Identity (per-service GCP SAs)
+
+Apply after Cloud SQL and Secret Manager (module reads their outputs):
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.iam
+terraform output iam_service_account_emails
+```
+
 ## 10. Continue Development
 
 After the reset, rebuild service images and push to Artifact Registry:
@@ -249,9 +260,30 @@ kubectl run curl-qdrant --rm -i --restart=Never -n platform \
   --image=curlimages/curl:latest -- curl -sf http://qdrant:6333/healthz
 ```
 
+## 13. Validate Workload Identity
+
+Run after section 11 (Helm charts must include WI annotations from `values-dev.yaml`):
+
+```bash
+for sa in api ingestion query workers; do
+  kubectl run "wi-check-$sa" --rm -i --restart=Never -n platform \
+    --image=curlimages/curl:latest \
+    --overrides="{\"spec\":{\"serviceAccountName\":\"$sa\"}}" \
+    -- curl -sf -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+done
+kubectl run wi-secret-test --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"api"}}' \
+  --command -- sh -c 'gcloud secrets versions access latest --secret=openai-api-key --project=turbo-rag >/dev/null && echo SECRET_ACCESS_OK'
+kubectl wait --for=condition=ready pod/wi-secret-test -n platform --timeout=90s
+kubectl logs wi-secret-test -n platform
+kubectl delete pod wi-secret-test -n platform
+```
+
 Then continue with:
 
-[`docs/plan/phase-1-foundation/1.10-workload-identity.md`](docs/plan/phase-1-foundation/1.10-workload-identity.md)
+[`docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md`](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md)
 
 Useful status docs:
 
@@ -264,3 +296,4 @@ Useful status docs:
 - `docs/history/secret_manager.md`
 - `docs/history/helm.md`
 - `docs/history/qdrant.md`
+- `docs/history/iam.md`

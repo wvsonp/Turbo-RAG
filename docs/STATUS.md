@@ -1,7 +1,7 @@
 # Project status
 
-**Last updated:** 2026-05-22 (1.9 done)  
-**Current phase:** 1 — Foundation (Infra as Code)  
+**Last updated:** 2026-05-22 (Phase 1 complete)  
+**Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
 
@@ -21,10 +21,11 @@
 - **1.7 Service skeletons** — Minimal FastAPI skeleton (health/ready/metrics) in `services/{api,ingestion,query,workers}/`; multi-stage Dockerfiles with non-root user; images pushed to `us-central1-docker.pkg.dev/turbo-rag/rag-platform` with `:{git-sha}` tag ([plan](plan/phase-1-foundation/1.7-service-skeletons.md), [`docs/history/service_skeletons.md`](history/service_skeletons.md))
 - **1.8 Helm charts** — Charts for `api`, `ingestion`, `query`, `workers` with Artifact Registry images, port 8080, `/health`/`/ready` probes, `values-dev.yaml`/`values-prod.yaml`; deployed to `platform` namespace on dev GKE ([plan](plan/phase-1-foundation/1.8-helm-charts.md), [`docs/history/helm.md`](history/helm.md))
 - **1.9 Qdrant on GKE** — `helm/qdrant/` StatefulSet with `qdrant-storage` PVC (`standard-rwo`, 10Gi), ClusterIP service, storage/snapshot paths on PVC; deployed to `platform` on dev GKE ([plan](plan/phase-1-foundation/1.9-qdrant.md), [`docs/history/qdrant.md`](history/qdrant.md))
+- **1.10 Workload Identity bindings** — `infra/modules/iam/` with per-service GCP SAs (`api-sa-dev`, etc.), WI bindings to Helm KSAs, `secretAccessor` on `openai-api-key` (api/query), `cloudsql.client` + IAM DB users for all four; Helm SA annotations in values-dev/prod; validated metadata + Secret Manager from `api` pod ([plan](plan/phase-1-foundation/1.10-workload-identity.md), [`docs/history/iam.md`](history/iam.md))
 
 ## In progress
 
-- **1.10 Workload Identity bindings** — per-service GCP SAs and Helm SA annotations ([plan](plan/phase-1-foundation/1.10-workload-identity.md))
+- **2.1 GCS bucket + Pub/Sub** — ingestion trigger infrastructure ([plan](plan/phase-2-ingestion/2.1-gcs-pubsub.md))
 
 ## Blocked
 

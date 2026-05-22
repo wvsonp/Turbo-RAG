@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 1.9 Qdrant on GKE**.
+current project state so work can continue at **Phase 1.10 Workload Identity**.
 
 Current target state:
 
@@ -10,7 +10,7 @@ Current target state:
 - Terraform env: `infra/environments/dev.tfvars`
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
-- Next task after reset: `docs/plan/phase-1-foundation/1.9-qdrant.md`
+- Next task after reset: `docs/plan/phase-1-foundation/1.10-workload-identity.md`
 
 ## 0. Assumptions
 
@@ -234,9 +234,24 @@ kubectl run curl-smoke --rm -i --restart=Never -n platform \
   --image=curlimages/curl:latest -- curl -sf http://api:8080/health
 ```
 
+## 12. Deploy Qdrant
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+helm lint helm/qdrant -f helm/qdrant/values-dev.yaml
+helm upgrade --install qdrant helm/qdrant \
+  -f helm/qdrant/values.yaml \
+  -f helm/qdrant/values-dev.yaml \
+  --namespace platform --create-namespace
+kubectl wait --for=condition=ready pod/qdrant-0 -n platform --timeout=120s
+kubectl get pvc -n platform -l app.kubernetes.io/name=qdrant
+kubectl run curl-qdrant --rm -i --restart=Never -n platform \
+  --image=curlimages/curl:latest -- curl -sf http://qdrant:6333/healthz
+```
+
 Then continue with:
 
-[`docs/plan/phase-1-foundation/1.9-qdrant.md`](docs/plan/phase-1-foundation/1.9-qdrant.md)
+[`docs/plan/phase-1-foundation/1.10-workload-identity.md`](docs/plan/phase-1-foundation/1.10-workload-identity.md)
 
 Useful status docs:
 
@@ -247,3 +262,5 @@ Useful status docs:
 - `docs/history/artifact_registry.md`
 - `docs/history/cloudsql.md`
 - `docs/history/secret_manager.md`
+- `docs/history/helm.md`
+- `docs/history/qdrant.md`

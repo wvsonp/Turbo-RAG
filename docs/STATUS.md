@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-22 (1.8 done)  
+**Last updated:** 2026-05-22 (1.9 done)  
 **Current phase:** 1 — Foundation (Infra as Code)  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -20,10 +20,11 @@
 - **Project status command** — Added `.cursor/commands/project-status.md` to summarize completed work, next task, and goal from this status file
 - **1.7 Service skeletons** — Minimal FastAPI skeleton (health/ready/metrics) in `services/{api,ingestion,query,workers}/`; multi-stage Dockerfiles with non-root user; images pushed to `us-central1-docker.pkg.dev/turbo-rag/rag-platform` with `:{git-sha}` tag ([plan](plan/phase-1-foundation/1.7-service-skeletons.md), [`docs/history/service_skeletons.md`](history/service_skeletons.md))
 - **1.8 Helm charts** — Charts for `api`, `ingestion`, `query`, `workers` with Artifact Registry images, port 8080, `/health`/`/ready` probes, `values-dev.yaml`/`values-prod.yaml`; deployed to `platform` namespace on dev GKE ([plan](plan/phase-1-foundation/1.8-helm-charts.md), [`docs/history/helm.md`](history/helm.md))
+- **1.9 Qdrant on GKE** — `helm/qdrant/` StatefulSet with `qdrant-storage` PVC (`standard-rwo`, 10Gi), ClusterIP service, storage/snapshot paths on PVC; deployed to `platform` on dev GKE ([plan](plan/phase-1-foundation/1.9-qdrant.md), [`docs/history/qdrant.md`](history/qdrant.md))
 
 ## In progress
 
-- **1.9 Deploy Qdrant on GKE** — StatefulSet chart, storage class, dev deploy ([plan](plan/phase-1-foundation/1.9-qdrant.md))
+- **1.10 Workload Identity bindings** — per-service GCP SAs and Helm SA annotations ([plan](plan/phase-1-foundation/1.10-workload-identity.md))
 
 ## Blocked
 

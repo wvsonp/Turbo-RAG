@@ -37,3 +37,11 @@
 **What was tried:** Helm `upgrade --install` for base CSI driver and GCP provider
 **Fix:** Install Helm (curl script) **or** install both drivers with `kubectl apply` from upstream release manifests (see `docs/history/secret_manager.md`).
 **Rule added:** _(none)_
+
+## [Phase 1] Qdrant StatefulSet — CrashLoopBackOff on snapshots path
+**Date:** 2026-05-22
+**What happened:** Qdrant pod crashed on startup with permission denied creating `./snapshots/tmp` because only `/qdrant/storage` was mounted on the PVC while `/qdrant` is root-owned in the container image.
+**Symptoms:** `Failed to create snapshots temp directory at ./snapshots/tmp: Permission denied (os error 13)`; pod in `CrashLoopBackOff`.
+**What was tried:** Mounting PVC at `/qdrant/storage` alone with default Qdrant paths.
+**Fix:** Set `QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage` and `QDRANT__STORAGE__SNAPSHOTS_PATH=/qdrant/storage/snapshots` in the Helm chart so all durable writes land on the PVC; delete pod to pick up env vars after upgrade.
+**Rule added:** _(none)_

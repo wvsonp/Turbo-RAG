@@ -1,0 +1,8 @@
+# Prod overrides — set image.tag at deploy time (git SHA or release tag).
+image:
+  tag: ""
+
+replicaCount: 2
+
+serviceAccount:
+  annotations: {}

@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 1.8 Helm charts**.
+current project state so work can continue at **Phase 1.9 Qdrant on GKE**.
 
 Current target state:
 
@@ -10,7 +10,7 @@ Current target state:
 - Terraform env: `infra/environments/dev.tfvars`
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
-- Next task after reset: `docs/plan/phase-1-foundation/1.8-helm-charts.md`
+- Next task after reset: `docs/plan/phase-1-foundation/1.9-qdrant.md`
 
 ## 0. Assumptions
 
@@ -214,9 +214,29 @@ for svc in api ingestion query workers; do
 done
 ```
 
+## 11. Deploy service Helm charts
+
+Update `image.tag` in each `helm/<svc>/values-dev.yaml` to match `SHA`, then:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+SHA=$(git rev-parse --short HEAD)
+for svc in api ingestion query workers; do
+  helm lint "helm/${svc}" -f "helm/${svc}/values-dev.yaml"
+  helm upgrade --install "$svc" "helm/${svc}" \
+    -f "helm/${svc}/values.yaml" \
+    -f "helm/${svc}/values-dev.yaml" \
+    --set "image.tag=${SHA}" \
+    --namespace platform --create-namespace
+done
+kubectl get pods -n platform
+kubectl run curl-smoke --rm -i --restart=Never -n platform \
+  --image=curlimages/curl:latest -- curl -sf http://api:8080/health
+```
+
 Then continue with:
 
-[`docs/plan/phase-1-foundation/1.8-helm-charts.md`](docs/plan/phase-1-foundation/1.8-helm-charts.md)
+[`docs/plan/phase-1-foundation/1.9-qdrant.md`](docs/plan/phase-1-foundation/1.9-qdrant.md)
 
 Useful status docs:
 

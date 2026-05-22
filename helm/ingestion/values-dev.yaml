@@ -1,0 +1,6 @@
+image:
+  tag: "32ef3b6"
+
+serviceAccount:
+  annotations: {}
+  # 1.10: iam.gke.io/gcp-service-account: ingestion-sa@turbo-rag.iam.gserviceaccount.com

@@ -1,0 +1,7 @@
+image:
+  tag: ""
+
+replicaCount: 2
+
+serviceAccount:
+  annotations: {}

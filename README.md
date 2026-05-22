@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.7 done; 1.8 Helm charts next).
+Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.8 done; 1.9 Qdrant next).
 
 ### Phase summary
 
@@ -31,7 +31,7 @@ Last updated: **2026-05-22**. Phase 1 in progress (1.1–1.7 done; 1.8 Helm char
 | 1.5 | CloudSQL (PostgreSQL) | **Done** | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
 | 1.6 | Secret Manager | **Done** | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
 | 1.7 | Dockerize services (skeleton) | **Done** | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
-| 1.8 | Helm charts | Not started | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
+| 1.8 | Helm charts | **Done** | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
 | 1.9 | Deploy Qdrant on GKE | Not started | [1.9](docs/plan/phase-1-foundation/1.9-qdrant.md) |
 | 1.10 | Workload Identity bindings | Not started | [1.10](docs/plan/phase-1-foundation/1.10-workload-identity.md) |
 
@@ -41,5 +41,5 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **Helm charts** (1.8) — one chart per service, values for dev/prod.
-2. **Qdrant on GKE** (1.9) and **per-service Workload Identity bindings** (1.10).
+1. **Qdrant on GKE** (1.9) — StatefulSet, PVC, dev deploy.
+2. **Workload Identity bindings** (1.10) — per-service GCP SAs and Helm SA annotations.

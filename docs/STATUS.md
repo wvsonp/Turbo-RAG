@@ -33,6 +33,7 @@ _(none)_
 
 ## Notes for agents
 
+- Phase 2 plan revised 2026-05-22 to reflect Phase 1 lessons (API prep, WI extension in 2.1, Prefect DB in 2.2, MLflow local-file in 2.4). See [`docs/plan/phase-2-ingestion/`](plan/phase-2-ingestion/).
 - Use **`docs/plan/<phase>/`** for acceptance criteria when implementing a step; update this file when a step’s criteria are met.
 - **`README.md`** — Public progress tables; update when a sub-phase step completes (e.g. 1.3, 1.4).
 - **`docs/history/`** — Learning journal after meaningful sub-tasks.

@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 2.3 Ingestion flow**.
+current project state so work can continue at **Phase 2.4 Chunking + MLflow**.
 
 Current target state:
 
@@ -10,8 +10,9 @@ Current target state:
 - Terraform env: `infra/environments/dev.tfvars`
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), GCS ingestion bucket + Pub/Sub (`module.pubsub`), per-service Workload Identity with ingestion IAM (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
-- Helm: api, ingestion, query, workers (WI annotations), qdrant
-- Next task after reset: `docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`
+- Helm: api, ingestion (dispatcher), query, workers, qdrant; Prefect server + worker
+- Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`
+- Next task after reset: `docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md`
 
 ## Smoke pods
 
@@ -240,8 +241,7 @@ kubectl logs wi-gcs-ingestion -n platform
 kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
 ```
 
-Then continue with section 14 (Prefect on GKE), then
-[`docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md).
+Then continue with section 14 (Prefect on GKE), then section 15 (Ingestion flow).
 
 For a full platform teardown (all modules), see destroy order notes in
 `docs/history/IaC.md`, `docs/history/iam.md`, and `docs/history/cloudsql.md`.
@@ -495,7 +495,7 @@ After the reset, rebuild service images and push to Artifact Registry:
 REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
 SHA=$(git rev-parse --short HEAD)
 for svc in api ingestion query workers; do
-  docker build -t "${svc}:local" "services/${svc}"
+  docker build -f "services/${svc}/Dockerfile" -t "${svc}:local" services/
   docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
   docker push "${REGISTRY}/${svc}:${SHA}"
 done
@@ -630,8 +630,62 @@ kubectl delete pod -n prefect -l app.kubernetes.io/name=prefect-server
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prefect-server -n prefect --timeout=120s
 ```
 
+Then continue with section 15 (Ingestion flow).
+
+## 15. Deploy ingestion flow (2.3)
+
+Build context is `services/` (shared `rag_platform` package). After section 10
+push and section 14 Prefect:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+SHA=$(git rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+
+# Refresh base job template (Cloud SQL proxy sidecar for flow jobs)
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+# Register Prefect deployment (uses workers image with flow code baked in)
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" \
+  PREFECT_API_URL=http://prefect-server.prefect.svc.cluster.local:4200/api \
+  bash scripts/register-ingest-deployment.sh
+
+# Redeploy ingestion (dispatcher) + workers with new image tag
+for svc in ingestion workers; do
+  helm upgrade --install "$svc" "helm/${svc}" \
+    -f "helm/${svc}/values.yaml" \
+    -f "helm/${svc}/values-dev.yaml" \
+    --set "image.tag=${SHA}" \
+    --namespace platform --create-namespace
+done
+kubectl rollout status deployment/ingestion -n platform --timeout=120s
+kubectl logs -n platform deploy/ingestion --tail=30
+```
+
+End-to-end validation (do **not** use `--auto-ack` on `ingestion-uploads-sub`):
+
+```bash
+echo "ingest-test-$(date +%s)" > /tmp/sample.txt
+gcloud storage cp /tmp/sample.txt gs://rag-ingestion-dev/incoming/sample.txt --project=turbo-rag
+
+kubectl logs -n platform deploy/ingestion -f --tail=50
+kubectl get jobs -n prefect
+kubectl get pods -n prefect -l prefect.io/flow-run-id
+
+kubectl run qdrant-count --restart=Never -n platform \
+  --image=curlimages/curl:latest \
+  -- curl -sf -X POST http://qdrant:6333/collections/rag_chunks_dev/points/count \
+  -H 'Content-Type: application/json' -d '{"exact":true}'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/qdrant-count -n platform --timeout=60s
+kubectl logs qdrant-count -n platform
+kubectl delete pod qdrant-count -n platform --ignore-not-found
+```
+
 Then continue with
-[`docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md).
+[`docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md`](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md).
 
 Useful status docs:
 
@@ -647,3 +701,4 @@ Useful status docs:
 - `docs/history/iam.md`
 - `docs/history/pubsub.md`
 - `docs/history/prefect.md`
+- `docs/history/ingestion.md`

@@ -113,27 +113,13 @@
                 }
               }
             ],
-            "volumes": [
-              {
-                "name": "flow-code",
-                "configMap": {
-                  "name": "hello-flow-source"
-                }
-              }
-            ],
             "containers": [
               {
                 "name": "prefect-job",
                 "env": "{{ env }}",
                 "image": "{{ image }}",
                 "imagePullPolicy": "{{ image_pull_policy }}",
-                "args": "{{ command }}",
-                "volumeMounts": [
-                  {
-                    "name": "flow-code",
-                    "mountPath": "/flow"
-                  }
-                ]
+                "args": "{{ command }}"
               }
             ]
           }

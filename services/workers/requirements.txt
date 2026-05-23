@@ -1,2 +1,8 @@
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
+prefect>=3.0.0
+asyncpg>=0.29.0
+google-cloud-storage>=2.16.0
+google-cloud-aiplatform>=1.49.0
+qdrant-client>=1.9.0
+pypdf>=4.0.0

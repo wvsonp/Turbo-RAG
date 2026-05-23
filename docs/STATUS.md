@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-23 (2.2 Prefect on GKE)  
+**Last updated:** 2026-05-23 (2.3 Ingestion flow)  
 **Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -28,10 +28,11 @@
 - **Quick dev reset — GKE cost control** — Documented targeted `terraform destroy -target=module.gke` and keep-list (network, Cloud SQL, secrets, AR, Pub/Sub, IAM) in [`quick-dev-reset.md`](../quick-dev-reset.md); full bring-back command sequence (Terraform, CSI, Helm, Qdrant, WI validation)
 - **Quick dev reset — smoke pod pattern** — Replaced flaky `kubectl run --rm -i` curl/nc checks in [`quick-dev-reset.md`](../quick-dev-reset.md) with wait-for-Completed + logs; gotcha in [`docs/history/lessons.md`](history/lessons.md)
 - **2.2 Prefect on GKE** — `prefect` DB; `prefect-server-sa-{env}` + WI; workers WI in `prefect` namespace; official Prefect Helm charts; Cloud SQL Auth Proxy IAM auth; server on system pool, flow jobs on worker pool; `hello-flow` validated ([plan](plan/phase-2-ingestion/2.2-prefect-on-gke.md), [`docs/history/prefect.md`](history/prefect.md))
+- **2.3 Ingestion flow** — Shared `services/shared/rag_platform/` contracts; `rag_metadata` SQL migrations; Prefect `ingest-document` flow (parse/chunk/Vertex embed/Qdrant upsert/stale cleanup); Pub/Sub dispatcher in `ingestion` service (ack after Prefect success); Helm env + Prefect job template; deploy script ([plan](plan/phase-2-ingestion/2.3-ingestion-flow.md), [`docs/history/ingestion.md`](history/ingestion.md))
 
 ## In progress
 
-- **2.3 Ingestion flow** — E2E parse/chunk/embed pipeline + metadata contracts ([plan](plan/phase-2-ingestion/2.3-ingestion-flow.md))
+- **2.4 Chunking + MLflow** — Chunking experiments with durable MLflow storage ([plan](plan/phase-2-ingestion/2.4-chunking-mlflow.md))
 
 ## Blocked
 
@@ -40,6 +41,7 @@ _(none)_
 ## Notes for agents
 
 - Phase 2 plan revised 2026-05-23 for robustness: dedicated dispatcher (ack after Prefect success), `bucket/object#generation` identity, metadata schema + stale cleanup, `prefect-server-sa` + `workers` WI for Cloud SQL, 600s ack deadline, no `--auto-ack` on main sub, durable MLflow PVC/GCS. See [`docs/plan/phase-2-ingestion/README.md`](plan/phase-2-ingestion/README.md).
+- Docker build context for `ingestion` and `workers` is `services/` (not `services/<svc>/`) because of shared `rag_platform` package.
 - Use **`docs/plan/<phase>/`** for acceptance criteria when implementing a step; update this file when a step’s criteria are met.
 - **`README.md`** — Public progress tables; update when a sub-phase step completes (e.g. 1.3, 1.4).
 - **`docs/history/`** — Learning journal after meaningful sub-tasks.

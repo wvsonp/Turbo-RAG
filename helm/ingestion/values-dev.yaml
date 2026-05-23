@@ -4,3 +4,17 @@ image:
 serviceAccount:
   annotations:
     iam.gke.io/gcp-service-account: ingestion-sa-dev@turbo-rag.iam.gserviceaccount.com
+
+env:
+  - name: GCP_PROJECT
+    value: turbo-rag
+  - name: PUBSUB_SUBSCRIPTION
+    value: ingestion-uploads-sub
+  - name: PREFECT_API_URL
+    value: http://prefect-server.prefect.svc.cluster.local:4200/api
+  - name: PREFECT_DEPLOYMENT_NAME
+    value: ingest-document/ingest-document
+  - name: DISPATCHER_MAX_CONCURRENT
+    value: "2"
+  - name: DISPATCHER_ENABLED
+    value: "true"

@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-23 (Architecture map)  
+**Last updated:** 2026-05-23 (2.2 Prefect on GKE)  
 **Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -25,10 +25,13 @@
 - **Phase 2 plan robustness** — Revised 2.1–2.5 + README: dispatcher-based Pub/Sub ack, GCS generation document identity, metadata/Qdrant contracts, Prefect IAM split, batching, DLQ replay, durable MLflow ([`docs/plan/phase-2-ingestion/`](plan/phase-2-ingestion/), [`docs/history/ingestion.md`](history/ingestion.md))
 - **2.1 GCS bucket + Pub/Sub** — `rag-ingestion-dev` bucket, topic `ingestion-uploads`, subs `ingestion-uploads-sub` (600s ack) + test sub, GCS notification, scoped IAM for ingestion/workers; upload→message and WI bucket list validated ([plan](plan/phase-2-ingestion/2.1-gcs-pubsub.md), [`docs/history/pubsub.md`](history/pubsub.md), [`docs/history/iam.md`](history/iam.md))
 - **Architecture map** — Added root [`ARCHITECTURE.md`](../ARCHITECTURE.md) with an implementation-derived master Mermaid diagram, current-vs-planned boundaries, runtime flow notes, and operational insights ([`docs/history/architecture.md`](history/architecture.md))
+- **Quick dev reset — GKE cost control** — Documented targeted `terraform destroy -target=module.gke` and keep-list (network, Cloud SQL, secrets, AR, Pub/Sub, IAM) in [`quick-dev-reset.md`](../quick-dev-reset.md); full bring-back command sequence (Terraform, CSI, Helm, Qdrant, WI validation)
+- **Quick dev reset — smoke pod pattern** — Replaced flaky `kubectl run --rm -i` curl/nc checks in [`quick-dev-reset.md`](../quick-dev-reset.md) with wait-for-Completed + logs; gotcha in [`docs/history/lessons.md`](history/lessons.md)
+- **2.2 Prefect on GKE** — `prefect` DB; `prefect-server-sa-{env}` + WI; workers WI in `prefect` namespace; official Prefect Helm charts; Cloud SQL Auth Proxy IAM auth; server on system pool, flow jobs on worker pool; `hello-flow` validated ([plan](plan/phase-2-ingestion/2.2-prefect-on-gke.md), [`docs/history/prefect.md`](history/prefect.md))
 
 ## In progress
 
-- **2.2 Prefect on GKE** — server, worker pool, `prefect-server-sa`, Cloud SQL `prefect` DB ([plan](plan/phase-2-ingestion/2.2-prefect-on-gke.md))
+- **2.3 Ingestion flow** — E2E parse/chunk/embed pipeline + metadata contracts ([plan](plan/phase-2-ingestion/2.3-ingestion-flow.md))
 
 ## Blocked
 

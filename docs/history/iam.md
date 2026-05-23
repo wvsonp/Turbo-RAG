@@ -71,7 +71,20 @@ terraform apply -var-file=environments/dev.tfvars -target=module.iam -auto-appro
 # helm upgrade loop and WI checks — see Runbook above
 ```
 
-**Deferred to 2.1:** GCS, Pub/Sub, and Vertex IAM roles for ingestion/workers (no buckets/topics yet).
+## 2026-05-23 — 2.2 Prefect IAM + Cloud SQL instanceUser
+
+**What:** Added `infra/modules/iam/prefect.tf`: `prefect-server-sa-{env}`, WI bindings to `prefect/prefect-server` and `prefect/workers` (workers reuse); `roles/cloudsql.client` + `roles/cloudsql.instanceUser` for prefect-server and all platform services.
+
+**Why:** Prefect server and flow jobs must connect to Cloud SQL via IAM auth without JSON keys; `instanceUser` is required for IAM database login in addition to `cloudsql.client`.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.iam -auto-approve
+```
+
+See [`docs/history/prefect.md`](prefect.md) for Helm deploy and validation.
 
 ## 2026-05-23 — 2.1 Ingestion IAM (scoped GCS / Pub/Sub / Vertex)
 

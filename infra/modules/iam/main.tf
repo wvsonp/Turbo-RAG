@@ -68,6 +68,14 @@ resource "google_project_iam_member" "cloudsql_client" {
   member  = "serviceAccount:${google_service_account.service[each.key].email}"
 }
 
+resource "google_project_iam_member" "cloudsql_instance_user" {
+  for_each = local.services
+
+  project = var.project_id
+  role    = "roles/cloudsql.instanceUser"
+  member  = "serviceAccount:${google_service_account.service[each.key].email}"
+}
+
 resource "google_sql_user" "iam" {
   for_each = local.services
 

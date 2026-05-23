@@ -1,0 +1,42 @@
+# Shared Prefect server values — official chart: prefect/prefect-server
+# Install: helm upgrade --install prefect-server prefect/prefect-server -f values-server.yaml -f values-server-<env>.yaml
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+secret:
+  create: true
+  # Password unused with Cloud SQL Auth Proxy --auto-iam-authn; chart requires the field.
+  password: "unused"
+
+server:
+  nodeSelector:
+    cloud.google.com/gke-nodepool: system
+
+  uiConfig:
+    prefectUiApiUrl: "http://prefect-server.prefect.svc.cluster.local:4200/api"
+
+  extraInitContainers:
+    - name: cloud-sql-proxy
+      restartPolicy: Always
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3
+      args:
+        - "--structured-logs"
+        - "--auto-iam-authn"
+        - "--private-ip"
+        - "--port=5432"
+        - "--address=127.0.0.1"
+        - "REPLACE_WITH_CLOUDSQL_CONNECTION_NAME"
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+
+serviceAccount:
+  create: true
+  name: prefect-server

@@ -105,3 +105,17 @@ terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
 terraform plan -var-file=environments/dev.tfvars
 ```
 
+## 2026-05-23 — GKE-only cost control teardown
+
+**What:** Added a **Cost control — destroy GKE only** section to `quick-dev-reset.md`: targeted destroy of `module.gke`, keep-list for network, Cloud SQL, Secret Manager, Artifact Registry, Pub/Sub, and IAM, plus ordered steps to bring the cluster back.
+
+**Why:** GKE node pools dominate dev spend; other modules are cheap or require manual re-entry (secret values, image rebuilds, PSA peering).
+
+**Commands:**
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform plan -destroy -var-file=environments/dev.tfvars -target=module.gke
+terraform destroy -var-file=environments/dev.tfvars -target=module.gke
+```
+
+**Bring back:** full copy-paste sequence in **Bring GKE back** under Cost control in `quick-dev-reset.md`.

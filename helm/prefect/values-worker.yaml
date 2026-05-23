@@ -1,0 +1,32 @@
+# Shared Prefect worker values — official chart: prefect/prefect-worker
+# Install: helm upgrade --install prefect-worker prefect/prefect-worker -f values-worker.yaml -f values-worker-<env>.yaml
+
+worker:
+  apiConfig: selfHostedServer
+
+  selfHostedServerApiConfig:
+    apiUrl: http://prefect-server.prefect.svc.cluster.local:4200/api
+
+  config:
+    workPool: kubernetes
+    type: kubernetes
+    jobNamespace: prefect
+
+  nodeSelector:
+    cloud.google.com/gke-nodepool: worker
+
+  tolerations:
+    - key: cloud.google.com/gke-spot
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+
+serviceAccount:
+  create: true
+  name: workers
+
+role:
+  create: true
+
+rolebinding:
+  create: true

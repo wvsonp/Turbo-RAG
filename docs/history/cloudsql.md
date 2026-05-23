@@ -39,6 +39,20 @@ kubectl run cloudsql-smoke --rm -i --restart=Never --image=postgres:15-alpine --
   sh -c 'nc -zv 10.16.0.3 5432'
 ```
 
+## 2026-05-23 — 2.2 `prefect` database
+
+**What:** Added `prefect` to `local.databases` in `infra/modules/cloudsql/main.tf`; applied dev. One-time postgres grants for IAM users on `prefect` and `rag_metadata` schemas (see `docs/history/prefect.md`).
+
+**Why:** Prefect server metadata store must live on Cloud SQL with IAM auth before Phase 2 orchestration.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+terraform output cloudsql_database_names | grep prefect
+```
+
 **Destroy order:** GKE workloads → `terraform destroy -target=module.cloudsql` → network PSA (see `docs/history/IaC.md`).
 
 ## 2026-05-21 — 1.5 Cloud SQL dev apply

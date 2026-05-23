@@ -1,6 +1,6 @@
 locals {
   instance_name = coalesce(var.instance_name, "rag-platform-${var.environment}")
-  databases     = ["rag_metadata", "langfuse", "mlflow"]
+  databases     = ["rag_metadata", "langfuse", "mlflow", "prefect"]
 }
 
 resource "google_sql_database_instance" "primary" {

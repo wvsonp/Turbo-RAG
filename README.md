@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-23**. Phase 2.1 complete; Phase 2.2 (Prefect on GKE) next.
+Last updated: **2026-05-23**. Phase 2.2 complete; Phase 2.3 (ingestion flow) next.
 
 ### Phase summary
 
@@ -40,7 +40,7 @@ Last updated: **2026-05-23**. Phase 2.1 complete; Phase 2.2 (Prefect on GKE) nex
 | Step | Task | Status | Plan |
 | ---- | ---- | ------ | ---- |
 | 2.1 | GCS bucket + Pub/Sub | **Done** | [2.1](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md) |
-| 2.2 | Prefect on GKE | Pending | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
+| 2.2 | Prefect on GKE | **Done** | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
 | 2.3 | Ingestion flow | Pending | [2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md) |
 | 2.4 | Chunking + MLflow | Pending | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
 | 2.5 | DLQ + idempotency | Pending | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
@@ -51,4 +51,4 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **Prefect on GKE** (2.2) — deploy Prefect server on system pool, flow jobs on Spot worker pool, `prefect-server-sa` + Cloud SQL `prefect` DB.
+1. **Ingestion flow** (2.3) — dispatcher → Prefect flow, metadata schema, GCS generation identity, Qdrant upsert path.

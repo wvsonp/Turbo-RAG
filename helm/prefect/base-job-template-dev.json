@@ -1,0 +1,144 @@
+{
+  "variables": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "description": "Name given to infrastructure created by a worker.",
+        "type": "string"
+      },
+      "env": {
+        "title": "Environment Variables",
+        "description": "Environment variables to set when starting a flow run.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "labels": {
+        "title": "Labels",
+        "description": "Labels applied to infrastructure created by a worker.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "command": {
+        "title": "Command",
+        "description": "The command to use when starting a flow run.",
+        "type": "string"
+      },
+      "namespace": {
+        "title": "Namespace",
+        "description": "The Kubernetes namespace to create jobs within.",
+        "type": "string",
+        "default": "prefect"
+      },
+      "image": {
+        "title": "Image",
+        "description": "The image reference of a container image to use for created jobs.",
+        "type": "string"
+      },
+      "service_account_name": {
+        "title": "Service Account Name",
+        "description": "The Kubernetes service account to use for job creation.",
+        "type": "string",
+        "default": "workers"
+      },
+      "image_pull_policy": {
+        "title": "Image Pull Policy",
+        "description": "The Kubernetes image pull policy to use for job containers.",
+        "enum": ["IfNotPresent", "Always", "Never"],
+        "type": "string",
+        "default": "IfNotPresent"
+      },
+      "finished_job_ttl": {
+        "title": "Finished Job TTL",
+        "description": "The number of seconds to retain jobs after completion.",
+        "type": "integer"
+      }
+    }
+  },
+  "job_configuration": {
+    "namespace": "{{ namespace }}",
+    "job_manifest": {
+      "apiVersion": "batch/v1",
+      "kind": "Job",
+      "metadata": {
+        "labels": "{{ labels }}",
+        "namespace": "{{ namespace }}",
+        "generateName": "{{ name }}-"
+      },
+      "spec": {
+        "backoffLimit": 0,
+        "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
+        "template": {
+          "spec": {
+            "parallelism": 1,
+            "completions": 1,
+            "restartPolicy": "Never",
+            "serviceAccountName": "{{ service_account_name }}",
+            "nodeSelector": {
+              "cloud.google.com/gke-nodepool": "worker"
+            },
+            "tolerations": [
+              {
+                "key": "cloud.google.com/gke-spot",
+                "operator": "Equal",
+                "value": "true",
+                "effect": "NoSchedule"
+              }
+            ],
+            "initContainers": [
+              {
+                "name": "cloud-sql-proxy",
+                "restartPolicy": "Always",
+                "image": "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3",
+                "args": [
+                  "--structured-logs",
+                  "--auto-iam-authn",
+                  "--private-ip",
+                  "--port=5432",
+                  "--address=127.0.0.1",
+                  "turbo-rag:us-central1:rag-platform-dev"
+                ],
+                "securityContext": {
+                  "runAsNonRoot": true
+                },
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  }
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "flow-code",
+                "configMap": {
+                  "name": "hello-flow-source"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "prefect-job",
+                "env": "{{ env }}",
+                "image": "{{ image }}",
+                "imagePullPolicy": "{{ image_pull_policy }}",
+                "args": "{{ command }}",
+                "volumeMounts": [
+                  {
+                    "name": "flow-code",
+                    "mountPath": "/flow"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

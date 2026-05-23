@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 2.2 Prefect on GKE**.
+current project state so work can continue at **Phase 2.3 Ingestion flow**.
 
 Current target state:
 
@@ -11,7 +11,240 @@ Current target state:
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), GCS ingestion bucket + Pub/Sub (`module.pubsub`), per-service Workload Identity with ingestion IAM (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion, query, workers (WI annotations), qdrant
-- Next task after reset: `docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md`
+- Next task after reset: `docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`
+
+## Smoke pods
+
+Avoid `kubectl run --rm -i` for fast one-shot checks (curl, `nc`, short `gcloud`).
+kubectl often fails to attach before the container exits, reporting
+`terminated (Error)` even when the check succeeded. Pattern used below:
+create pod → wait for `Completed` → `kubectl logs` → delete.
+
+## Cost control — destroy GKE only
+
+Use this to stop the main dev spend (GKE node VMs and disks) while keeping
+everything that is cheap to run or painful to recreate.
+
+**Destroy (expensive):**
+
+| Resource | Why |
+| -------- | --- |
+| GKE cluster + node pools (`module.gke`) | Largest ongoing cost: fixed system nodes + application pool |
+
+**Keep running (do not destroy):**
+
+| Resource | Why keep |
+| -------- | -------- |
+| Network / VPC / PSA / NAT (`module.network`) | Peering and CIDR layout are tedious to rebuild |
+| Cloud SQL (`module.cloudsql`) | Data, backups, IAM DB users |
+| Secret Manager (`module.secret_manager`) | Secret **values** are manual; containers + IAM are in Terraform |
+| Artifact Registry (`module.artifact_registry`) | Pushed service images |
+| GCS + Pub/Sub (`module.pubsub`) | Bucket objects and notification wiring |
+| Workload Identity (`module.iam`) | GCP SAs, WI bindings, Cloud SQL IAM users |
+| State bucket `gs://rag-platform-tf-state` | Bootstrap; always outside teardown |
+
+Cloud SQL (`db-f1-micro`) still incurs a small monthly charge. Destroy it
+separately only if you also accept losing DB data and re-running secret value
+setup — not covered here.
+
+**What you lose when GKE goes away:** all cluster workloads, Helm releases,
+CSI driver pods, and PVC data (including Qdrant vectors). GCP-side IAM, secrets,
+SQL, bucket, and registry are unchanged.
+
+No `helm uninstall` required; deleting the cluster removes in-cluster resources.
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform destroy -var-file=environments/dev.tfvars -target=module.gke
+```
+
+GKE `deletion_protection` is `false` in dev by default. Confirm with
+`terraform plan -destroy -var-file=environments/dev.tfvars -target=module.gke`
+before typing `yes`.
+
+### Bring GKE back
+
+Prerequisites: network, Cloud SQL, Secret Manager, Artifact Registry, Pub/Sub,
+and IAM modules were **not** destroyed (see keep-list above). Secret values
+(e.g. `openai-api-key`) must still exist in Secret Manager — no re-entry needed
+if you only destroyed GKE.
+
+**1. Authenticate (if the session expired)**
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project turbo-rag
+gcloud config set compute/region us-central1
+```
+
+**2. Recreate the cluster**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+```
+
+**3. Restore kubectl access and wait for nodes**
+
+```bash
+gcloud container clusters get-credentials rag-platform-dev \
+  --region us-central1 \
+  --project turbo-rag
+
+kubectl get nodes -L cloud.google.com/gke-nodepool
+kubectl wait --for=condition=ready node --all --timeout=600s
+```
+
+Expected: Ready nodes in the `system` and `application` pools. The `worker`
+pool may show zero nodes (autoscale min is 0).
+
+**4. Reinstall Secret Store CSI drivers (cluster-scoped; lost with the cluster)**
+
+```bash
+CSI_TAG=v1.4.7
+BASE="https://raw.githubusercontent.com/kubernetes-sigs/secrets-store-csi-driver/${CSI_TAG}/deploy"
+kubectl apply -f "${BASE}/rbac-secretproviderclass.yaml"
+kubectl apply -f "${BASE}/csidriver.yaml"
+kubectl apply -f "${BASE}/secrets-store.csi.x-k8s.io_secretproviderclasses.yaml"
+kubectl apply -f "${BASE}/secrets-store.csi.x-k8s.io_secretproviderclasspodstatuses.yaml"
+kubectl apply -f "${BASE}/secrets-store-csi-driver.yaml"
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/secrets-store-csi-driver-provider-gcp/main/deploy/provider-gcp-plugin.yaml
+kubectl wait --for=condition=ready pod -l app=csi-secrets-store -n kube-system --timeout=300s
+```
+
+**5. Confirm service images in Artifact Registry**
+
+Images should still be present if you only destroyed GKE. List tags:
+
+```bash
+gcloud artifacts docker images list \
+  us-central1-docker.pkg.dev/turbo-rag/rag-platform \
+  --include-tags
+```
+
+If `api`, `ingestion`, `query`, and `workers` images exist, deploy with the
+tags in `helm/*/values-dev.yaml` (skip to step 6). Otherwise rebuild and push:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+SHA=$(git rev-parse --short HEAD)
+for svc in api ingestion query workers; do
+  docker build -t "${svc}:local" "services/${svc}"
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+done
+```
+
+**6. Deploy platform Helm charts**
+
+Using tags from `values-dev.yaml` (no rebuild):
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+for svc in api ingestion query workers; do
+  helm lint "helm/${svc}" -f "helm/${svc}/values-dev.yaml"
+  helm upgrade --install "$svc" "helm/${svc}" \
+    -f "helm/${svc}/values.yaml" \
+    -f "helm/${svc}/values-dev.yaml" \
+    --namespace platform --create-namespace
+done
+kubectl get pods -n platform
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=api -n platform --timeout=120s
+kubectl run curl-smoke --restart=Never -n platform \
+  --image=curlimages/curl:latest -- curl -sf http://api:8080/health
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/curl-smoke -n platform --timeout=60s
+kubectl logs curl-smoke -n platform
+kubectl delete pod curl-smoke -n platform --ignore-not-found
+```
+
+If you rebuilt images in step 5, add `--set "image.tag=${SHA}"` to each
+`helm upgrade --install` instead of relying on `values-dev.yaml` tags.
+
+**7. Deploy Qdrant (fresh PVC — vector data from before teardown is gone)**
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+helm lint helm/qdrant -f helm/qdrant/values-dev.yaml
+helm upgrade --install qdrant helm/qdrant \
+  -f helm/qdrant/values.yaml \
+  -f helm/qdrant/values-dev.yaml \
+  --namespace platform --create-namespace
+kubectl wait --for=condition=ready pod/qdrant-0 -n platform --timeout=120s
+kubectl get pvc -n platform -l app.kubernetes.io/name=qdrant
+kubectl run curl-qdrant --restart=Never -n platform \
+  --image=curlimages/curl:latest -- curl -sf http://qdrant:6333/healthz
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/curl-qdrant -n platform --timeout=60s
+kubectl logs curl-qdrant -n platform
+kubectl delete pod curl-qdrant -n platform --ignore-not-found
+```
+
+**8. Validate Workload Identity and Secret Manager access**
+
+GCP-side WI bindings were kept; Helm charts must recreate KSAs with annotations
+from `values-dev.yaml` (step 6):
+
+```bash
+for sa in api ingestion query workers; do
+  kubectl run "wi-check-$sa" --restart=Never -n platform \
+    --image=curlimages/curl:latest \
+    --overrides="{\"spec\":{\"serviceAccountName\":\"$sa\"}}" \
+    -- curl -sf -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+  kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+    "pod/wi-check-$sa" -n platform --timeout=60s
+  kubectl logs "wi-check-$sa" -n platform
+  kubectl delete pod "wi-check-$sa" -n platform --ignore-not-found
+done
+kubectl run wi-secret-test --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"api"}}' \
+  --command -- sh -c 'gcloud secrets versions access latest --secret=openai-api-key --project=turbo-rag >/dev/null && echo SECRET_ACCESS_OK'
+kubectl wait --for=condition=ready pod/wi-secret-test -n platform --timeout=90s
+kubectl logs wi-secret-test -n platform
+kubectl delete pod wi-secret-test -n platform
+```
+
+**9. Optional smoke tests (GCP resources unchanged; confirms pod reachability)**
+
+Cloud SQL from a pod:
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+CLOUDSQL_PRIVATE_IP="$(terraform output -raw cloudsql_private_ip)"
+kubectl run cloudsql-smoke --restart=Never \
+  --env="CLOUDSQL_PRIVATE_IP=${CLOUDSQL_PRIVATE_IP}" \
+  --image=postgres:15-alpine \
+  --command -- sh -c 'nc -zv "$CLOUDSQL_PRIVATE_IP" 5432'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/cloudsql-smoke --timeout=60s
+kubectl logs cloudsql-smoke
+kubectl delete pod cloudsql-smoke --ignore-not-found
+```
+
+GCS list via ingestion WI:
+
+```bash
+kubectl run wi-gcs-ingestion --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
+  -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/wi-gcs-ingestion -n platform --timeout=120s
+kubectl logs wi-gcs-ingestion -n platform
+kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
+```
+
+Then continue with section 14 (Prefect on GKE), then
+[`docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md).
+
+For a full platform teardown (all modules), see destroy order notes in
+`docs/history/IaC.md`, `docs/history/iam.md`, and `docs/history/cloudsql.md`.
 
 ## 0. Assumptions
 
@@ -166,10 +399,14 @@ Validate private network reachability from GKE:
 ```bash
 CLOUDSQL_PRIVATE_IP="$(terraform output -raw cloudsql_private_ip)"
 
-kubectl run cloudsql-smoke --rm -i --restart=Never \
+kubectl run cloudsql-smoke --restart=Never \
   --env="CLOUDSQL_PRIVATE_IP=${CLOUDSQL_PRIVATE_IP}" \
   --image=postgres:15-alpine \
   --command -- sh -c 'nc -zv "$CLOUDSQL_PRIVATE_IP" 5432'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/cloudsql-smoke --timeout=60s
+kubectl logs cloudsql-smoke
+kubectl delete pod cloudsql-smoke --ignore-not-found
 ```
 
 ## 9. Secret Manager + CSI (Terraform + cluster)
@@ -230,10 +467,14 @@ gcloud pubsub subscriptions describe ingestion-uploads-sub \
 WI proof (ingestion KSA lists bucket):
 
 ```bash
-kubectl run wi-gcs-ingestion --rm -i --restart=Never -n platform \
+kubectl run wi-gcs-ingestion --restart=Never -n platform \
   --image=google/cloud-sdk:slim \
   --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
   -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/wi-gcs-ingestion -n platform --timeout=120s
+kubectl logs wi-gcs-ingestion -n platform
+kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
 ```
 
 ## 9c. Workload Identity (base bindings)
@@ -276,8 +517,12 @@ for svc in api ingestion query workers; do
     --namespace platform --create-namespace
 done
 kubectl get pods -n platform
-kubectl run curl-smoke --rm -i --restart=Never -n platform \
+kubectl run curl-smoke --restart=Never -n platform \
   --image=curlimages/curl:latest -- curl -sf http://api:8080/health
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/curl-smoke -n platform --timeout=60s
+kubectl logs curl-smoke -n platform
+kubectl delete pod curl-smoke -n platform --ignore-not-found
 ```
 
 ## 12. Deploy Qdrant
@@ -291,8 +536,12 @@ helm upgrade --install qdrant helm/qdrant \
   --namespace platform --create-namespace
 kubectl wait --for=condition=ready pod/qdrant-0 -n platform --timeout=120s
 kubectl get pvc -n platform -l app.kubernetes.io/name=qdrant
-kubectl run curl-qdrant --rm -i --restart=Never -n platform \
+kubectl run curl-qdrant --restart=Never -n platform \
   --image=curlimages/curl:latest -- curl -sf http://qdrant:6333/healthz
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/curl-qdrant -n platform --timeout=60s
+kubectl logs curl-qdrant -n platform
+kubectl delete pod curl-qdrant -n platform --ignore-not-found
 ```
 
 ## 13. Validate Workload Identity
@@ -301,11 +550,15 @@ Run after section 11 (Helm charts must include WI annotations from `values-dev.y
 
 ```bash
 for sa in api ingestion query workers; do
-  kubectl run "wi-check-$sa" --rm -i --restart=Never -n platform \
+  kubectl run "wi-check-$sa" --restart=Never -n platform \
     --image=curlimages/curl:latest \
     --overrides="{\"spec\":{\"serviceAccountName\":\"$sa\"}}" \
     -- curl -sf -H "Metadata-Flavor: Google" \
     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+  kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+    "pod/wi-check-$sa" -n platform --timeout=60s
+  kubectl logs "wi-check-$sa" -n platform
+  kubectl delete pod "wi-check-$sa" -n platform --ignore-not-found
 done
 kubectl run wi-secret-test --restart=Never -n platform \
   --image=google/cloud-sdk:slim \
@@ -316,9 +569,69 @@ kubectl logs wi-secret-test -n platform
 kubectl delete pod wi-secret-test -n platform
 ```
 
-Then continue with:
+Then continue with section 14 (Prefect on GKE).
 
-[`docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md`](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md)
+## 14. Deploy Prefect on GKE (2.2)
+
+Requires Helm (`helm repo add prefect https://prefecthq.github.io/prefect-helm`). After Terraform
+`module.cloudsql` + `module.iam` include the `prefect` database and `prefect-server-sa-{env}`.
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql -target=module.iam
+
+cd /home/wvsonp/Turbo-RAG
+helm repo add prefect https://prefecthq.github.io/prefect-helm 2>/dev/null || true
+helm repo update prefect
+
+kubectl create namespace prefect --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic prefect-server-postgresql-connection \
+  --from-literal=connection-string='postgresql+asyncpg://prefect-server-sa-dev%40turbo-rag.iam@127.0.0.1:5432/prefect' \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+helm upgrade --install prefect-server prefect/prefect-server \
+  -f helm/prefect/values-server.yaml \
+  -f helm/prefect/values-server-dev.yaml \
+  --namespace prefect --create-namespace
+
+helm upgrade --install prefect-worker prefect/prefect-worker \
+  -f helm/prefect/values-worker.yaml \
+  -f helm/prefect/values-worker-dev.yaml \
+  --namespace prefect
+
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prefect-server -n prefect --timeout=180s
+kubectl get pods -n prefect -o wide
+```
+
+One-time Cloud SQL grants for new `prefect` database (dev bootstrap — see `docs/history/prefect.md`):
+
+```bash
+gcloud sql users set-password postgres --instance=rag-platform-dev \
+  --password='Bootstrap-Dev-Only-2026!' --project=turbo-rag
+CLOUDSQL_IP="$(cd infra && terraform output -raw cloudsql_private_ip)"
+kubectl run db-grant-prefect --restart=Never -n prefect \
+  --image=postgres:15-alpine \
+  --env="PGPASSWORD=Bootstrap-Dev-Only-2026!" \
+  --command -- sh -c "
+psql -h ${CLOUDSQL_IP} -U postgres -d prefect -c \"GRANT ALL ON SCHEMA public TO \\\"prefect-server-sa-dev@turbo-rag.iam\\\";\"
+psql -h ${CLOUDSQL_IP} -U postgres -d prefect -c \"GRANT cloudsqlsuperuser TO \\\"prefect-server-sa-dev@turbo-rag.iam\\\";\"
+psql -h ${CLOUDSQL_IP} -U postgres -d rag_metadata -c \"GRANT cloudsqlsuperuser TO \\\"workers-sa-dev@turbo-rag.iam\\\";\"
+echo GRANTS_OK"
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/db-grant-prefect -n prefect --timeout=90s
+kubectl logs db-grant-prefect -n prefect
+kubectl delete pod db-grant-prefect -n prefect --ignore-not-found
+kubectl delete pod -n prefect -l app.kubernetes.io/name=prefect-server
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prefect-server -n prefect --timeout=120s
+```
+
+Then continue with
+[`docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md).
 
 Useful status docs:
 
@@ -333,3 +646,4 @@ Useful status docs:
 - `docs/history/qdrant.md`
 - `docs/history/iam.md`
 - `docs/history/pubsub.md`
+- `docs/history/prefect.md`

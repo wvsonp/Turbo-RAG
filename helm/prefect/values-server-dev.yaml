@@ -1,0 +1,31 @@
+# Dev overrides for prefect-server — fill from: terraform output cloudsql_connection_name iam_service_account_emails
+
+postgresql:
+  auth:
+    existingSecret: prefect-server-postgresql-connection
+
+secret:
+  create: false
+
+server:
+  extraInitContainers:
+    - name: cloud-sql-proxy
+      restartPolicy: Always
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3
+      args:
+        - "--structured-logs"
+        - "--auto-iam-authn"
+        - "--private-ip"
+        - "--port=5432"
+        - "--address=127.0.0.1"
+        - "turbo-rag:us-central1:rag-platform-dev"
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: prefect-server-sa-dev@turbo-rag.iam.gserviceaccount.com

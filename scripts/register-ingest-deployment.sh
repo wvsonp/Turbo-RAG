@@ -19,7 +19,7 @@ kubectl run prefect-deploy-ingest --restart=Never -n "$NAMESPACE" \
         {"name": "PREFECT_API_URL", "value": "${API_URL}"},
         {"name": "PREFECT_LOGGING_LEVEL", "value": "INFO"}
       ],
-      "command": ["sh", "-c", "prefect work-pool inspect kubernetes >/dev/null 2>&1 || prefect work-pool create kubernetes --type kubernetes; prefect deploy flows/ingest_document.py:ingest_document --name ingest-document --pool kubernetes --image ${WORKERS_IMAGE} && echo DEPLOY_OK && sleep 120"]
+      "command": ["sh", "-c", "prefect work-pool inspect kubernetes >/dev/null 2>&1 || prefect work-pool create kubernetes --type kubernetes; prefect deploy flows/ingest_document.py:ingest_document --name ingest-document --pool kubernetes --job-variable image=${WORKERS_IMAGE} && echo DEPLOY_OK && sleep 120"]
     }]
   }
 }

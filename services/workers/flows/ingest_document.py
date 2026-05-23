@@ -14,7 +14,7 @@ from rag_platform.config import IngestionConfig
 from rag_platform.contracts import document_version_id
 from rag_platform.logging_utils import configure_logging
 
-from chunking.chunker import chunk_text
+from chunking.registry import get_chunker
 from db.migrate import ensure_schema
 from db.repository import MetadataRepository, build_chunk_records
 from embedding.vertex import VertexEmbedder
@@ -47,7 +47,7 @@ def download_and_parse(
         max_bytes=config.max_object_bytes,
         max_pdf_pages=config.max_pdf_pages,
     )
-    chunks = chunk_text(
+    chunks = get_chunker(config.chunker_name, config=config).chunk(
         text, chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap
     )
     return content_hash, chunks

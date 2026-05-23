@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-23 (2.3 Ingestion flow)  
+**Last updated:** 2026-05-23 (2.4 Chunking + MLflow)  
 **Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -29,10 +29,11 @@
 - **Quick dev reset — smoke pod pattern** — Replaced flaky `kubectl run --rm -i` curl/nc checks in [`quick-dev-reset.md`](../quick-dev-reset.md) with wait-for-Completed + logs; gotcha in [`docs/history/lessons.md`](history/lessons.md)
 - **2.2 Prefect on GKE** — `prefect` DB; `prefect-server-sa-{env}` + WI; workers WI in `prefect` namespace; official Prefect Helm charts; Cloud SQL Auth Proxy IAM auth; server on system pool, flow jobs on worker pool; `hello-flow` validated ([plan](plan/phase-2-ingestion/2.2-prefect-on-gke.md), [`docs/history/prefect.md`](history/prefect.md))
 - **2.3 Ingestion flow** — Shared `services/shared/rag_platform/` contracts; `rag_metadata` SQL migrations; Prefect `ingest-document` flow (parse/chunk/Vertex embed/Qdrant upsert/stale cleanup); Pub/Sub dispatcher in `ingestion` service (ack after Prefect success); Helm env + Prefect job template; deploy script ([plan](plan/phase-2-ingestion/2.3-ingestion-flow.md), [`docs/history/ingestion.md`](history/ingestion.md))
+- **2.4 Chunking + MLflow** — Three chunkers (`fixed`, `recursive`, `semantic`) with registry + `CHUNKER` config; Prefect `chunking-experiment` flow logs params/metrics/artifacts to durable `mlruns-pvc` at `/mlruns`; deploy/upload scripts; production default remains `fixed` pending experiment comparison ([plan](plan/phase-2-ingestion/2.4-chunking-mlflow.md), [`docs/history/ingestion.md`](history/ingestion.md))
 
 ## In progress
 
-- **2.4 Chunking + MLflow** — Chunking experiments with durable MLflow storage ([plan](plan/phase-2-ingestion/2.4-chunking-mlflow.md))
+- **2.5 DLQ + idempotency** — Dead-letter queue Terraform and replay runbook ([plan](plan/phase-2-ingestion/2.5-dlq-idempotency.md))
 
 ## Blocked
 

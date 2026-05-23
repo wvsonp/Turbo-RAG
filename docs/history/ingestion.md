@@ -4,6 +4,7 @@ What we did so far, in order (logic over detail):
 
 1. **Phase 2 plan robustness (2026-05-23)** — Updated `docs/plan/phase-2-ingestion/` README and steps 2.1–2.5 before implementation.
 2. **2.3 Ingestion flow (2026-05-23)** — E2E dispatcher + Prefect flow with metadata schema, Vertex embeddings, Qdrant upsert, stale cleanup.
+3. **2.4 Chunking + MLflow (2026-05-23)** — Three chunkers, experiment flow, durable `mlruns-pvc`, MLflow file tracking for Phase 5.2 migration.
 
 ## 2026-05-23 — Phase 2 plan robustness
 
@@ -60,3 +61,46 @@ kubectl logs -n platform deploy/ingestion -f --tail=50
 | Deploy script | `scripts/register-ingest-deployment.sh` |
 
 **Not in 2.3:** DLQ Terraform ([2.5](../plan/phase-2-ingestion/2.5-dlq-idempotency.md)); chunking MLflow comparison ([2.4](../plan/phase-2-ingestion/2.4-chunking-mlflow.md)).
+
+## 2026-05-23 — 2.4 Chunking + MLflow
+
+**What:** Added three chunkers (`fixed`, `recursive`, `semantic`) behind `chunking/registry.py` with `CHUNKER` env config; Prefect `chunking-experiment` flow logs params/metrics/artifacts to MLflow file backend on `mlruns-pvc` (`/mlruns`); updated Prefect base job template with PVC mount; deploy/upload scripts; production default chunker remains `fixed` (2.3-compatible) until experiment metrics justify a switch.
+
+**Why:** Phase 2 requires comparable chunking experiments on a fixed test document with durable artifacts before Phase 5.2 MLflow server migration, without writing to production Qdrant.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/services
+SHA=$(git -C .. rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+docker build -f workers/Dockerfile -t workers:local .
+docker tag workers:local "${REGISTRY}/workers:${SHA}"
+docker push "${REGISTRY}/workers:${SHA}"
+
+kubectl apply -f helm/prefect/mlruns-pvc.yaml
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+bash scripts/upload-chunking-sample.sh
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" bash scripts/register-chunking-experiment-deployment.sh
+prefect deployment run chunking-experiment/chunking-experiment  # from in-cluster pod
+
+# Durable mlruns path for Phase 5.2 migration
+kubectl run mlruns-ls --restart=Never -n prefect --image=busybox:1.36 \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","command":["ls","-la","/mlruns"],"volumeMounts":[{"name":"mlruns","mountPath":"/mlruns"}]}],"volumes":[{"name":"mlruns","persistentVolumeClaim":{"claimName":"mlruns-pvc"}}]}}'
+```
+
+**Layout:**
+
+| Component | Path |
+| --------- | ---- |
+| Chunkers | `services/workers/chunking/` |
+| Experiment flow | `services/workers/flows/chunking_experiment.py` |
+| MLflow helpers | `services/workers/experiments/mlflow_tracking.py` |
+| PVC | `helm/prefect/mlruns-pvc.yaml` |
+| Deploy script | `scripts/register-chunking-experiment-deployment.sh` |
+| Sample upload | `scripts/upload-chunking-sample.sh` |
+
+**Default chunker:** `CHUNKER=fixed` in `helm/workers/values-*.yaml` (matches 2.3). Compare MLflow runs from `chunking-experiment` before switching to `recursive` or `semantic`.

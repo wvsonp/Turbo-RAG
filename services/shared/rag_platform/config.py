@@ -33,6 +33,7 @@ class IngestionConfig:
     text_preview_chars: int
     chunk_size: int
     chunk_overlap: int
+    chunker_name: str
     retry_attempts: int
     retry_base_delay_seconds: float
 
@@ -60,6 +61,7 @@ class IngestionConfig:
             text_preview_chars=_int("TEXT_PREVIEW_CHARS", 200),
             chunk_size=_int("CHUNK_SIZE", 512),
             chunk_overlap=_int("CHUNK_OVERLAP", 64),
+            chunker_name=os.getenv("CHUNKER", "fixed").strip().lower(),
             retry_attempts=_int("RETRY_ATTEMPTS", 3),
             retry_base_delay_seconds=_float("RETRY_BASE_DELAY_SECONDS", 1.0),
         )
@@ -94,4 +96,28 @@ class DispatcherConfig:
             ack_extension_seconds=_int("ACK_EXTENSION_SECONDS", 60),
             poll_interval_seconds=_float("DISPATCHER_POLL_INTERVAL_SECONDS", 5.0),
             flow_timeout_seconds=_int("DISPATCHER_FLOW_TIMEOUT_SECONDS", 540),
+        )
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    mlflow_tracking_uri: str
+    mlflow_experiment_name: str
+    test_gcs_uri: str
+    sample_chunk_count: int
+    environment: str
+
+    @classmethod
+    def from_env(cls) -> ExperimentConfig:
+        return cls(
+            mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI", "file:/mlruns"),
+            mlflow_experiment_name=os.getenv(
+                "MLFLOW_EXPERIMENT_NAME", "chunking-strategies"
+            ),
+            test_gcs_uri=os.getenv(
+                "EXPERIMENT_TEST_GCS_URI",
+                "gs://rag-ingestion-dev/experiments/chunking-sample.txt",
+            ),
+            sample_chunk_count=_int("EXPERIMENT_SAMPLE_CHUNK_COUNT", 5),
+            environment=os.getenv("ENVIRONMENT", "dev"),
         )

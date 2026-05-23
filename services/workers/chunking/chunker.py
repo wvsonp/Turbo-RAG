@@ -1,25 +1,23 @@
-"""Simple character-based chunker (default strategy; MLflow experiments in 2.4)."""
+"""Chunking utilities — backward-compatible exports."""
 
 from __future__ import annotations
 
+from chunking.fixed import FixedSizeChunker
+from chunking.registry import ALL_CHUNKER_NAMES, DEFAULT_CHUNKER, get_chunker
+
+_fixed = FixedSizeChunker()
+
 
 def chunk_text(text: str, *, chunk_size: int, chunk_overlap: int) -> list[str]:
-    if not text.strip():
-        return []
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
-    if chunk_overlap >= chunk_size:
-        raise ValueError("chunk_overlap must be less than chunk_size")
+    """Fixed-size chunking (legacy helper used by 2.3)."""
+    return _fixed.chunk(
+        text, chunk_size=chunk_size, chunk_overlap=chunk_overlap
+    )
 
-    chunks: list[str] = []
-    start = 0
-    length = len(text)
-    while start < length:
-        end = min(start + chunk_size, length)
-        piece = text[start:end].strip()
-        if piece:
-            chunks.append(piece)
-        if end >= length:
-            break
-        start = end - chunk_overlap
-    return chunks
+
+__all__ = [
+    "ALL_CHUNKER_NAMES",
+    "DEFAULT_CHUNKER",
+    "chunk_text",
+    "get_chunker",
+]

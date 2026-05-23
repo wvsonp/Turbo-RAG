@@ -13,6 +13,7 @@ COPY workers/main.py ./
 COPY workers/flows /app/flows
 COPY workers/db /app/db
 COPY workers/chunking /app/chunking
+COPY workers/experiments /app/experiments
 COPY workers/parsing /app/parsing
 COPY workers/embedding /app/embedding
 COPY workers/qdrant /app/qdrant

@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-23**. Phase 2.3 complete; Phase 2.4 (chunking + MLflow) next.
+Last updated: **2026-05-23**. Phase 2.4 complete; Phase 2.5 (DLQ + idempotency) next.
 
 ### Phase summary
 
@@ -42,7 +42,7 @@ Last updated: **2026-05-23**. Phase 2.3 complete; Phase 2.4 (chunking + MLflow) 
 | 2.1 | GCS bucket + Pub/Sub | **Done** | [2.1](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md) |
 | 2.2 | Prefect on GKE | **Done** | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
 | 2.3 | Ingestion flow | **Done** | [2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md) |
-| 2.4 | Chunking + MLflow | Pending | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
+| 2.4 | Chunking + MLflow | **Done** | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
 | 2.5 | DLQ + idempotency | Pending | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
 
 ### Phases 3–6
@@ -51,4 +51,4 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **Chunking + MLflow** (2.4) — compare chunking strategies with durable experiment artifacts.
+1. **DLQ + idempotency** (2.5) — Terraform dead-letter subscription and replay runbook.

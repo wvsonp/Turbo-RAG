@@ -78,6 +78,10 @@
             "completions": 1,
             "restartPolicy": "Never",
             "serviceAccountName": "{{ service_account_name }}",
+            "securityContext": {
+              "fsGroup": 1000,
+              "fsGroupChangePolicy": "OnRootMismatch"
+            },
             "nodeSelector": {
               "cloud.google.com/gke-nodepool": "worker"
             },
@@ -119,7 +123,21 @@
                 "env": "{{ env }}",
                 "image": "{{ image }}",
                 "imagePullPolicy": "{{ image_pull_policy }}",
-                "args": "{{ command }}"
+                "args": "{{ command }}",
+                "volumeMounts": [
+                  {
+                    "name": "mlruns",
+                    "mountPath": "/mlruns"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "mlruns",
+                "persistentVolumeClaim": {
+                  "claimName": "mlruns-pvc"
+                }
               }
             ]
           }

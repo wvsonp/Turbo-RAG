@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 2.4 Chunking + MLflow**.
+current project state so work can continue at **Phase 2.5 DLQ + idempotency**.
 
 Current target state:
 
@@ -11,8 +11,8 @@ Current target state:
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), GCS ingestion bucket + Pub/Sub (`module.pubsub`), per-service Workload Identity with ingestion IAM (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion (dispatcher), query, workers, qdrant; Prefect server + worker
-- Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`
-- Next task after reset: `docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md`
+- Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`; chunking experiments on `mlruns-pvc`
+- Next task after reset: `docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md`
 
 ## Smoke pods
 
@@ -594,6 +594,8 @@ kubectl create configmap prefect-worker-base-job-template \
   --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
   -n prefect --dry-run=client -o yaml | kubectl apply -f -
 
+kubectl apply -f helm/prefect/mlruns-pvc.yaml
+
 helm upgrade --install prefect-server prefect/prefect-server \
   -f helm/prefect/values-server.yaml \
   -f helm/prefect/values-server-dev.yaml \
@@ -684,8 +686,79 @@ kubectl logs qdrant-count -n platform
 kubectl delete pod qdrant-count -n platform --ignore-not-found
 ```
 
+Then continue with section 16 (Chunking experiments).
+
+## 16. Chunking experiments + MLflow (2.4)
+
+After section 15 (ingestion flow deployed), upload the fixed test document,
+register the experiment deployment, and run it:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+SHA=$(git rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+
+kubectl apply -f helm/prefect/mlruns-pvc.yaml
+
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+bash scripts/upload-chunking-sample.sh
+
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" \
+  PREFECT_API_URL=http://prefect-server.prefect.svc.cluster.local:4200/api \
+  bash scripts/register-chunking-experiment-deployment.sh
+
+# Trigger experiment (no Pub/Sub)
+kubectl run prefect-run-chunking-experiment --restart=Never -n prefect \
+  --image="${REGISTRY}/workers:${SHA}" \
+  --overrides="$(cat <<EOF
+{
+  "spec": {
+    "serviceAccountName": "workers",
+    "containers": [{
+      "name": "c",
+      "image": "${REGISTRY}/workers:${SHA}",
+      "env": [
+        {"name": "PREFECT_API_URL", "value": "http://prefect-server.prefect.svc.cluster.local:4200/api"},
+        {"name": "MLFLOW_TRACKING_URI", "value": "file:/mlruns"}
+      ],
+      "command": ["sh", "-c", "prefect deployment run chunking-experiment/chunking-experiment && sleep 120"]
+    }]
+  }
+}
+EOF
+)"
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/prefect-run-chunking-experiment -n prefect --timeout=180s || true
+kubectl logs prefect-run-chunking-experiment -n prefect
+kubectl delete pod prefect-run-chunking-experiment -n prefect --ignore-not-found
+
+kubectl get jobs -n prefect
+kubectl get pods -n prefect -l prefect.io/flow-run-id
+
+# Prove durable mlruns on PVC (survives job pod exit)
+kubectl run mlruns-ls --restart=Never -n prefect \
+  --image=busybox:1.36 \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","command":["sh","-c","ls -la /mlruns && find /mlruns -maxdepth 4 -type f | head -20 && echo MLRUNS_OK"],"volumeMounts":[{"name":"mlruns","mountPath":"/mlruns"}]}],"volumes":[{"name":"mlruns","persistentVolumeClaim":{"claimName":"mlruns-pvc"}}]}}'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/mlruns-ls -n prefect --timeout=60s
+kubectl logs mlruns-ls -n prefect
+kubectl delete pod mlruns-ls -n prefect --ignore-not-found
+```
+
+Local UI (copy mlruns from cluster first if needed):
+
+```bash
+mlflow ui --backend-store-uri file:./mlruns --port 5000
+```
+
+Production chunker default is `CHUNKER=fixed` (see `helm/workers/values-*.yaml`).
+Compare the three MLflow runs before switching to `recursive` or `semantic`.
+
 Then continue with
-[`docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md`](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md).
+[`docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md`](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md).
 
 Useful status docs:
 

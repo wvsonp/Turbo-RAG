@@ -18,3 +18,7 @@ env:
     value: workers-sa-dev@turbo-rag.iam
   - name: DB_NAME
     value: rag_metadata
+  - name: CHUNKER
+    value: fixed
+  - name: MLFLOW_TRACKING_URI
+    value: file:/mlruns

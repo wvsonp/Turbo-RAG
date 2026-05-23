@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-22 (Phase 1 complete)  
+**Last updated:** 2026-05-23 (Phase 2 plan robustness)  
 **Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -22,6 +22,7 @@
 - **1.8 Helm charts** — Charts for `api`, `ingestion`, `query`, `workers` with Artifact Registry images, port 8080, `/health`/`/ready` probes, `values-dev.yaml`/`values-prod.yaml`; deployed to `platform` namespace on dev GKE ([plan](plan/phase-1-foundation/1.8-helm-charts.md), [`docs/history/helm.md`](history/helm.md))
 - **1.9 Qdrant on GKE** — `helm/qdrant/` StatefulSet with `qdrant-storage` PVC (`standard-rwo`, 10Gi), ClusterIP service, storage/snapshot paths on PVC; deployed to `platform` on dev GKE ([plan](plan/phase-1-foundation/1.9-qdrant.md), [`docs/history/qdrant.md`](history/qdrant.md))
 - **1.10 Workload Identity bindings** — `infra/modules/iam/` with per-service GCP SAs (`api-sa-dev`, etc.), WI bindings to Helm KSAs, `secretAccessor` on `openai-api-key` (api/query), `cloudsql.client` + IAM DB users for all four; Helm SA annotations in values-dev/prod; validated metadata + Secret Manager from `api` pod ([plan](plan/phase-1-foundation/1.10-workload-identity.md), [`docs/history/iam.md`](history/iam.md))
+- **Phase 2 plan robustness** — Revised 2.1–2.5 + README: dispatcher-based Pub/Sub ack, GCS generation document identity, metadata/Qdrant contracts, Prefect IAM split, batching, DLQ replay, durable MLflow ([`docs/plan/phase-2-ingestion/`](plan/phase-2-ingestion/), [`docs/history/ingestion.md`](history/ingestion.md))
 
 ## In progress
 
@@ -33,7 +34,7 @@ _(none)_
 
 ## Notes for agents
 
-- Phase 2 plan revised 2026-05-22 to reflect Phase 1 lessons (API prep, WI extension in 2.1, Prefect DB in 2.2, MLflow local-file in 2.4). See [`docs/plan/phase-2-ingestion/`](plan/phase-2-ingestion/).
+- Phase 2 plan revised 2026-05-23 for robustness: dedicated dispatcher (ack after Prefect success), `bucket/object#generation` identity, metadata schema + stale cleanup, `prefect-server-sa` + `workers` WI for Cloud SQL, 600s ack deadline, no `--auto-ack` on main sub, durable MLflow PVC/GCS. See [`docs/plan/phase-2-ingestion/README.md`](plan/phase-2-ingestion/README.md).
 - Use **`docs/plan/<phase>/`** for acceptance criteria when implementing a step; update this file when a step’s criteria are met.
 - **`README.md`** — Public progress tables; update when a sub-phase step completes (e.g. 1.3, 1.4).
 - **`docs/history/`** — Learning journal after meaningful sub-tasks.

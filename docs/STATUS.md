@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-23 (Phase 2 plan robustness)  
+**Last updated:** 2026-05-23 (Architecture map)  
 **Current phase:** 2 — Ingestion pipeline  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -23,10 +23,12 @@
 - **1.9 Qdrant on GKE** — `helm/qdrant/` StatefulSet with `qdrant-storage` PVC (`standard-rwo`, 10Gi), ClusterIP service, storage/snapshot paths on PVC; deployed to `platform` on dev GKE ([plan](plan/phase-1-foundation/1.9-qdrant.md), [`docs/history/qdrant.md`](history/qdrant.md))
 - **1.10 Workload Identity bindings** — `infra/modules/iam/` with per-service GCP SAs (`api-sa-dev`, etc.), WI bindings to Helm KSAs, `secretAccessor` on `openai-api-key` (api/query), `cloudsql.client` + IAM DB users for all four; Helm SA annotations in values-dev/prod; validated metadata + Secret Manager from `api` pod ([plan](plan/phase-1-foundation/1.10-workload-identity.md), [`docs/history/iam.md`](history/iam.md))
 - **Phase 2 plan robustness** — Revised 2.1–2.5 + README: dispatcher-based Pub/Sub ack, GCS generation document identity, metadata/Qdrant contracts, Prefect IAM split, batching, DLQ replay, durable MLflow ([`docs/plan/phase-2-ingestion/`](plan/phase-2-ingestion/), [`docs/history/ingestion.md`](history/ingestion.md))
+- **2.1 GCS bucket + Pub/Sub** — `rag-ingestion-dev` bucket, topic `ingestion-uploads`, subs `ingestion-uploads-sub` (600s ack) + test sub, GCS notification, scoped IAM for ingestion/workers; upload→message and WI bucket list validated ([plan](plan/phase-2-ingestion/2.1-gcs-pubsub.md), [`docs/history/pubsub.md`](history/pubsub.md), [`docs/history/iam.md`](history/iam.md))
+- **Architecture map** — Added root [`ARCHITECTURE.md`](../ARCHITECTURE.md) with an implementation-derived master Mermaid diagram, current-vs-planned boundaries, runtime flow notes, and operational insights ([`docs/history/architecture.md`](history/architecture.md))
 
 ## In progress
 
-- **2.1 GCS bucket + Pub/Sub** — ingestion trigger infrastructure ([plan](plan/phase-2-ingestion/2.1-gcs-pubsub.md))
+- **2.2 Prefect on GKE** — server, worker pool, `prefect-server-sa`, Cloud SQL `prefect` DB ([plan](plan/phase-2-ingestion/2.2-prefect-on-gke.md))
 
 ## Blocked
 

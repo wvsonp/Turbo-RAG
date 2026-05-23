@@ -51,13 +51,23 @@ module "secret_manager" {
   environment = var.environment
 }
 
+module "pubsub" {
+  source = "./modules/pubsub"
+
+  project_id  = var.project_id
+  region      = var.region
+  environment = var.environment
+}
+
 module "iam" {
   source = "./modules/iam"
 
-  project_id             = var.project_id
-  environment            = var.environment
-  secret_ids             = module.secret_manager.secret_ids
-  cloudsql_instance_name = module.cloudsql.instance_name
+  project_id                = var.project_id
+  environment               = var.environment
+  secret_ids                = module.secret_manager.secret_ids
+  cloudsql_instance_name    = module.cloudsql.instance_name
+  ingestion_bucket_name       = module.pubsub.ingestion_bucket_name
+  ingestion_subscription_name = module.pubsub.ingestion_subscription_name
 
-  depends_on = [module.secret_manager, module.cloudsql]
+  depends_on = [module.secret_manager, module.cloudsql, module.pubsub]
 }

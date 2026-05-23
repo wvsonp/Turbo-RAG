@@ -24,3 +24,15 @@ variable "cloudsql_instance_name" {
   type        = string
   description = "Cloud SQL instance name for IAM database users"
 }
+
+variable "ingestion_bucket_name" {
+  type        = string
+  description = "GCS ingestion bucket name for scoped IAM (empty skips bucket bindings)"
+  default     = ""
+}
+
+variable "ingestion_subscription_name" {
+  type        = string
+  description = "Main Pub/Sub subscription name for scoped IAM (empty skips subscriber bindings)"
+  default     = ""
+}

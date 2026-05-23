@@ -1,17 +1,17 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 2.1 GCS + Pub/Sub**.
+current project state so work can continue at **Phase 2.2 Prefect on GKE**.
 
 Current target state:
 
 - Project: `turbo-rag`
 - Region: `us-central1`
 - Terraform env: `infra/environments/dev.tfvars`
-- Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), per-service Workload Identity (`module.iam`)
+- Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), GCS ingestion bucket + Pub/Sub (`module.pubsub`), per-service Workload Identity with ingestion IAM (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion, query, workers (WI annotations), qdrant
-- Next task after reset: `docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md`
+- Next task after reset: `docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md`
 
 ## 0. Assumptions
 
@@ -112,6 +112,9 @@ Expected key outputs after reset:
 - `cloudsql_private_ip` allocated from `10.16.0.0/16`
 - `gke_cluster_name = "rag-platform-dev"`
 - `secret_accessor_gcp_sa_email` (e.g. `secret-accessor-dev@turbo-rag.iam.gserviceaccount.com`)
+- `ingestion_bucket_name = "rag-ingestion-dev"`
+- `ingestion_topic_name = "ingestion-uploads"`
+- `ingestion_subscription_name = "ingestion-uploads-sub"`
 
 ## 6. Restore Local GKE Access
 
@@ -201,9 +204,41 @@ kubectl wait --for=condition=ready pod -l app=csi-secrets-store -n kube-system -
 
 Optional smoke test (see `k8s/secret-manager-csi/` and `docs/history/secret_manager.md`).
 
-## 9b. Workload Identity (per-service GCP SAs)
+## 9b. GCS ingestion bucket + Pub/Sub + Workload Identity
 
-Apply after Cloud SQL and Secret Manager (module reads their outputs):
+Apply Pub/Sub resources first, then IAM ingestion bindings (root passes bucket/sub names from `module.pubsub`):
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.pubsub -target=module.iam
+terraform output ingestion_bucket_name ingestion_subscription_name iam_service_account_emails
+```
+
+Validate upload → Pub/Sub (use test sub for `--auto-ack`; never on main sub once dispatcher is deployed):
+
+```bash
+echo "test-$(date +%s)" > /tmp/sample.txt
+gcloud storage cp /tmp/sample.txt gs://rag-ingestion-dev/incoming/sample.txt --project=turbo-rag
+sleep 5
+gcloud pubsub subscriptions pull ingestion-uploads-test-sub --auto-ack --limit=1 --project=turbo-rag
+
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="value(ackDeadlineSeconds)"
+# Expected: 600
+```
+
+WI proof (ingestion KSA lists bucket):
+
+```bash
+kubectl run wi-gcs-ingestion --rm -i --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
+  -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
+```
+
+## 9c. Workload Identity (base bindings)
+
+If you applied section 9b, base WI + ingestion IAM are already in place. To apply only the original 1.10 bindings without Pub/Sub (not recommended after Phase 2.1):
 
 ```bash
 cd /home/wvsonp/Turbo-RAG/infra
@@ -283,7 +318,7 @@ kubectl delete pod wi-secret-test -n platform
 
 Then continue with:
 
-[`docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md`](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md)
+[`docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md`](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md)
 
 Useful status docs:
 
@@ -297,3 +332,4 @@ Useful status docs:
 - `docs/history/helm.md`
 - `docs/history/qdrant.md`
 - `docs/history/iam.md`
+- `docs/history/pubsub.md`

@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-22**. Phase 1 complete; Phase 2.1 (GCS + Pub/Sub) next.
+Last updated: **2026-05-23**. Phase 2.1 complete; Phase 2.2 (Prefect on GKE) next.
 
 ### Phase summary
 
@@ -35,10 +35,20 @@ Last updated: **2026-05-22**. Phase 1 complete; Phase 2.1 (GCS + Pub/Sub) next.
 | 1.9 | Deploy Qdrant on GKE | **Done** | [1.9](docs/plan/phase-1-foundation/1.9-qdrant.md) |
 | 1.10 | Workload Identity bindings | **Done** | [1.10](docs/plan/phase-1-foundation/1.10-workload-identity.md) |
 
-### Phases 2–6
+### Phase 2 — Ingestion (detail)
+
+| Step | Task | Status | Plan |
+| ---- | ---- | ------ | ---- |
+| 2.1 | GCS bucket + Pub/Sub | **Done** | [2.1](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md) |
+| 2.2 | Prefect on GKE | Pending | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
+| 2.3 | Ingestion flow | Pending | [2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md) |
+| 2.4 | Chunking + MLflow | Pending | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
+| 2.5 | DLQ + idempotency | Pending | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
+
+### Phases 3–6
 
 See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per phase.
 
 ### Suggested next steps
 
-1. **GCS bucket + Pub/Sub** (2.1) — upload notifications for the ingestion pipeline; add GCS/Pub/Sub IAM to ingestion/workers SAs when resources exist.
+1. **Prefect on GKE** (2.2) — deploy Prefect server on system pool, flow jobs on Spot worker pool, `prefect-server-sa` + Cloud SQL `prefect` DB.

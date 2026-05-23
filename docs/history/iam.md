@@ -72,3 +72,21 @@ terraform apply -var-file=environments/dev.tfvars -target=module.iam -auto-appro
 ```
 
 **Deferred to 2.1:** GCS, Pub/Sub, and Vertex IAM roles for ingestion/workers (no buckets/topics yet).
+
+## 2026-05-23 — 2.1 Ingestion IAM (scoped GCS / Pub/Sub / Vertex)
+
+**What:** Added `infra/modules/iam/ingestion.tf` with scoped bindings: `ingestion-sa-{env}` → `storage.objectViewer` on `rag-ingestion-{env}` + `pubsub.subscriber` on `ingestion-uploads-sub` (dispatcher-only; workers do not subscribe); `workers-sa-{env}` → `storage.objectViewer` on bucket + `aiplatform.user` at project level.
+
+**Why:** Phase 2 ingestion needs least-privilege access to the upload bucket and Pub/Sub main subscription without JSON keys; workers need GCS read and Vertex embeddings access for flow jobs (2.3).
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.pubsub -target=module.iam
+
+kubectl run wi-gcs-ingestion --rm -i --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
+  -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
+```

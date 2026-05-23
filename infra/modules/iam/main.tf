@@ -1,19 +1,19 @@
 locals {
   services = {
     api = {
-      k8s_sa                = "api"
+      k8s_sa              = "api"
       grant_secret_access = true
     }
     ingestion = {
-      k8s_sa                = "ingestion"
+      k8s_sa              = "ingestion"
       grant_secret_access = false
     }
     query = {
-      k8s_sa                = "query"
+      k8s_sa              = "query"
       grant_secret_access = true
     }
     workers = {
-      k8s_sa                = "workers"
+      k8s_sa              = "workers"
       grant_secret_access = false
     }
   }

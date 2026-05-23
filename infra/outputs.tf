@@ -95,3 +95,28 @@ output "iam_k8s_service_account_annotations" {
   description = "Helm serviceAccount.annotations values per service"
   value       = module.iam.k8s_service_account_annotations
 }
+
+output "ingestion_bucket_name" {
+  description = "GCS bucket for document uploads"
+  value       = module.pubsub.ingestion_bucket_name
+}
+
+output "ingestion_bucket_url" {
+  description = "GCS bucket URL prefix for ingestion uploads"
+  value       = module.pubsub.ingestion_bucket_url
+}
+
+output "ingestion_topic_name" {
+  description = "Pub/Sub topic for GCS upload notifications"
+  value       = module.pubsub.ingestion_topic_name
+}
+
+output "ingestion_subscription_name" {
+  description = "Main Pub/Sub subscription (dispatcher consumer)"
+  value       = module.pubsub.ingestion_subscription_name
+}
+
+output "ingestion_test_subscription_name" {
+  description = "Test Pub/Sub subscription for manual validation"
+  value       = module.pubsub.ingestion_test_subscription_name
+}

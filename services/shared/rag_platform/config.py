@@ -71,12 +71,14 @@ class IngestionConfig:
 class DispatcherConfig:
     project_id: str
     subscription: str
+    dlq_subscription: str
     prefect_api_url: str
     prefect_deployment_name: str
     max_concurrent_runs: int
     ack_extension_seconds: int
     poll_interval_seconds: float
     flow_timeout_seconds: int
+    dlq_poll_interval_seconds: float
 
     @classmethod
     def from_env(cls) -> DispatcherConfig:
@@ -84,6 +86,9 @@ class DispatcherConfig:
             project_id=os.getenv("GCP_PROJECT", "turbo-rag"),
             subscription=os.getenv(
                 "PUBSUB_SUBSCRIPTION", "ingestion-uploads-sub"
+            ),
+            dlq_subscription=os.getenv(
+                "PUBSUB_DLQ_SUBSCRIPTION", "ingestion-uploads-dlq-sub"
             ),
             prefect_api_url=os.getenv(
                 "PREFECT_API_URL",
@@ -96,6 +101,7 @@ class DispatcherConfig:
             ack_extension_seconds=_int("ACK_EXTENSION_SECONDS", 60),
             poll_interval_seconds=_float("DISPATCHER_POLL_INTERVAL_SECONDS", 5.0),
             flow_timeout_seconds=_int("DISPATCHER_FLOW_TIMEOUT_SECONDS", 540),
+            dlq_poll_interval_seconds=_float("DLQ_POLL_INTERVAL_SECONDS", 60.0),
         )
 
 

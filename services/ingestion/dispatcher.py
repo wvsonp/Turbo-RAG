@@ -138,18 +138,74 @@ class Dispatcher:
         self._subscription_path = self._subscriber.subscription_path(
             config.project_id, config.subscription
         )
+        self._dlq_subscription_path = (
+            self._subscriber.subscription_path(
+                config.project_id, config.dlq_subscription
+            )
+            if config.dlq_subscription
+            else None
+        )
         self._prefect = PrefectClient(config)
         self._in_flight: dict[str, InFlightRun] = {}
         self._lock = threading.Lock()
+        self._metrics_lock = threading.Lock()
         self._stop = threading.Event()
+        self._ingestion_runs_total = 0
+        self._ingestion_failures_total = 0
+        self._dlq_undelivered_messages = 0
+        self._last_dlq_poll = time.monotonic()
 
     def stop(self) -> None:
         self._stop.set()
 
+    def metrics_text(self) -> str:
+        with self._metrics_lock:
+            runs = self._ingestion_runs_total
+            failures = self._ingestion_failures_total
+            dlq_depth = self._dlq_undelivered_messages
+        lines = [
+            "# HELP up Service up",
+            "# TYPE up gauge",
+            "up 1",
+            "# HELP ingestion_runs_total Prefect ingestion runs started by dispatcher",
+            "# TYPE ingestion_runs_total counter",
+            f"ingestion_runs_total {runs}",
+            "# HELP ingestion_failures_total Ingestion runs nacked due to failure or timeout",
+            "# TYPE ingestion_failures_total counter",
+            f"ingestion_failures_total {failures}",
+            "# HELP dlq_undelivered_messages Approximate DLQ subscription depth (0 or more)",
+            "# TYPE dlq_undelivered_messages gauge",
+            f"dlq_undelivered_messages {dlq_depth}",
+        ]
+        return "\n".join(lines) + "\n"
+
+    def _record_run_started(self) -> None:
+        with self._metrics_lock:
+            self._ingestion_runs_total += 1
+
+    def _record_failure(
+        self,
+        *,
+        reason: str,
+        document_version_id: str,
+        pubsub_message_id: str,
+        prefect_flow_run_id: str | None = None,
+    ) -> None:
+        with self._metrics_lock:
+            self._ingestion_failures_total += 1
+        logger.warning(
+            "Ingestion nack reason=%s document_version_id=%s pubsub_message_id=%s prefect_flow_run_id=%s",
+            reason,
+            document_version_id,
+            pubsub_message_id,
+            prefect_flow_run_id or "",
+        )
+
     def run_forever(self) -> None:
         logger.info(
-            "Dispatcher starting subscription=%s max_concurrent=%d",
+            "Dispatcher starting subscription=%s dlq_subscription=%s max_concurrent=%d",
             self._config.subscription,
+            self._config.dlq_subscription or "(disabled)",
             self._config.max_concurrent_runs,
         )
         asyncio.run(self._run_loop())
@@ -157,6 +213,7 @@ class Dispatcher:
     async def _run_loop(self) -> None:
         await self._prefect.resolve_deployment_id()
         while not self._stop.is_set():
+            await self._poll_dlq_depth_if_due()
             await self._poll_in_flight()
             capacity = self._config.max_concurrent_runs - len(self._in_flight)
             if capacity <= 0:
@@ -168,6 +225,51 @@ class Dispatcher:
             for pulled in messages:
                 await self._handle_message(pulled)
             await asyncio.sleep(self._config.poll_interval_seconds)
+
+    async def _poll_dlq_depth_if_due(self) -> None:
+        if not self._dlq_subscription_path:
+            return
+        now = time.monotonic()
+        if now - self._last_dlq_poll < self._config.dlq_poll_interval_seconds:
+            return
+        self._last_dlq_poll = now
+        await asyncio.to_thread(self._sample_dlq_depth)
+
+    def _sample_dlq_depth(self) -> None:
+        if not self._dlq_subscription_path:
+            return
+        try:
+            response = self._subscriber.pull(
+                request={
+                    "subscription": self._dlq_subscription_path,
+                    "max_messages": 100,
+                    "return_immediately": True,
+                }
+            )
+        except Exception:
+            logger.exception(
+                "DLQ depth sample failed subscription=%s",
+                self._config.dlq_subscription,
+            )
+            return
+        count = len(response.received_messages)
+        with self._metrics_lock:
+            self._dlq_undelivered_messages = count
+        if count > 0:
+            logger.warning(
+                "DLQ has undelivered messages count=%d subscription=%s",
+                count,
+                self._config.dlq_subscription,
+            )
+            ack_ids = [msg.ack_id for msg in response.received_messages]
+            if ack_ids:
+                self._subscriber.modify_ack_deadline(
+                    request={
+                        "subscription": self._dlq_subscription_path,
+                        "ack_ids": ack_ids,
+                        "ack_deadline_seconds": self._config.ack_extension_seconds,
+                    }
+                )
 
     def _pull_messages(self, max_messages: int) -> list[PulledMessage]:
         response = self._subscriber.pull(
@@ -242,8 +344,15 @@ class Dispatcher:
                 "Failed to create Prefect run document_version_id=%s",
                 version_key,
             )
+            self._record_failure(
+                reason="prefect_create_failed",
+                document_version_id=version_key,
+                pubsub_message_id=pulled.message_id,
+            )
+            self._nack(pulled.ack_id)
             return
 
+        self._record_run_started()
         logger.info(
             "Started Prefect run document_version_id=%s prefect_flow_run_id=%s pubsub_message_id=%s",
             version_key,
@@ -268,10 +377,11 @@ class Dispatcher:
             elapsed = time.monotonic() - run.started_at
             if state not in TERMINAL_STATES:
                 if elapsed > self._config.flow_timeout_seconds:
-                    logger.error(
-                        "Flow timeout document_version_id=%s prefect_flow_run_id=%s",
-                        version_key,
-                        run.prefect_flow_run_id,
+                    self._record_failure(
+                        reason="flow_timeout",
+                        document_version_id=run.document_version_id,
+                        pubsub_message_id=run.pubsub_message_id,
+                        prefect_flow_run_id=run.prefect_flow_run_id,
                     )
                     self._nack(run.ack_id)
                     self._remove_in_flight(version_key)
@@ -285,11 +395,11 @@ class Dispatcher:
                 )
                 self._ack(run.ack_id)
             else:
-                logger.warning(
-                    "Flow failed state=%s document_version_id=%s prefect_flow_run_id=%s",
-                    state,
-                    version_key,
-                    run.prefect_flow_run_id,
+                self._record_failure(
+                    reason=f"flow_{state.lower()}",
+                    document_version_id=run.document_version_id,
+                    pubsub_message_id=run.pubsub_message_id,
+                    prefect_flow_run_id=run.prefect_flow_run_id,
                 )
                 self._nack(run.ack_id)
             self._remove_in_flight(version_key)

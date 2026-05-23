@@ -62,4 +62,6 @@ def ready():
 
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics():
+    if _dispatcher is not None:
+        return _dispatcher.metrics_text()
     return "# HELP up Service up\n# TYPE up gauge\nup 1\n"

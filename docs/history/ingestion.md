@@ -104,3 +104,59 @@ kubectl run mlruns-ls --restart=Never -n prefect --image=busybox:1.36 \
 | Sample upload | `scripts/upload-chunking-sample.sh` |
 
 **Default chunker:** `CHUNKER=fixed` in `helm/workers/values-*.yaml` (matches 2.3). Compare MLflow runs from `chunking-experiment` before switching to `recursive` or `semantic`.
+
+## 2026-05-24 — 2.5 DLQ + idempotency
+
+**What:** Orphan Qdrant point deletion when a document version shrinks (fewer chunks); dispatcher explicit nack on Prefect create failure, structured failure logging, Prometheus counters (`ingestion_runs_total`, `ingestion_failures_total`, `dlq_undelivered_messages`), periodic DLQ depth sample; DLQ replay runbook below. Terraform DLQ applied in dev (see [`pubsub.md`](pubsub.md)).
+
+**Why:** Phase 2 requires bounded Pub/Sub retries into a dead-letter queue, idempotent re-runs without duplicate vectors, and operational visibility before Phase 4 alerting.
+
+**Deploy (after code changes):**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/services
+SHA=$(git -C .. rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+for svc in ingestion workers; do
+  docker build -f "${svc}/Dockerfile" -t "${svc}:local" .
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+done
+
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" bash ../scripts/register-ingest-deployment.sh
+helm upgrade --install ingestion ../helm/ingestion \
+  -f ../helm/ingestion/values.yaml -f ../helm/ingestion/values-dev.yaml \
+  --set "image.tag=${SHA}" --namespace platform
+```
+
+**Validation:**
+
+```bash
+# DLQ wiring (Terraform)
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="yaml(deadLetterPolicy)"
+
+# Dispatcher metrics (after new ingestion image)
+kubectl run metrics-curl --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf http://ingestion.platform.svc.cluster.local:8080/metrics
+kubectl logs metrics-curl -n platform
+kubectl delete pod metrics-curl -n platform --ignore-not-found
+
+# Idempotency: run flow twice for same (bucket, object_name, generation); Qdrant count unchanged
+kubectl run qdrant-count --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf -X POST http://qdrant.platform.svc.cluster.local:6333/collections/rag_chunks_dev/points/count \
+  -H 'Content-Type: application/json' -d '{"exact":true}'
+
+# Supersede: upload new generation of same object; old points removed
+# Shrink: re-upload same generation with fewer chunks; orphan indices removed from Qdrant
+```
+
+**DLQ replay runbook:**
+
+1. Inspect (do not ack until recorded): `gcloud pubsub subscriptions pull ingestion-uploads-dlq-sub --project=turbo-rag --limit=1`
+2. Fix root cause (bad file, flow bug, quota).
+3. Replay: republish to `ingestion-uploads` **or** Prefect manual run with same `{bucket, object_name, generation}`.
+4. Confirm idempotent — same `document_version_id` must not increase Qdrant point count.
+5. Ack DLQ message after successful replay: `gcloud pubsub subscriptions pull ingestion-uploads-dlq-sub --auto-ack --limit=1 --project=turbo-rag`
+
+**Poison message test:** Publish or upload an object that fails ingestion (missing object, corrupt parse, oversize). Dispatcher nacks; after 5 delivery attempts message appears on `ingestion-uploads-dlq-sub`. Use a fast-failing object to avoid long waits with 600s ack deadline.

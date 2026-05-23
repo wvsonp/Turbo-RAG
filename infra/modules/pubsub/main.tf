@@ -3,6 +3,9 @@ locals {
   topic_name               = "ingestion-uploads"
   subscription_name        = "ingestion-uploads-sub"
   test_subscription_name   = "ingestion-uploads-test-sub"
+  dlq_topic_name           = "ingestion-uploads-dlq"
+  dlq_subscription_name    = "ingestion-uploads-dlq-sub"
+  pubsub_sa                = "service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 data "google_project" "current" {
@@ -27,6 +30,11 @@ resource "google_pubsub_topic" "ingestion_uploads" {
   project = var.project_id
 }
 
+resource "google_pubsub_topic" "ingestion_uploads_dlq" {
+  name    = local.dlq_topic_name
+  project = var.project_id
+}
+
 resource "google_pubsub_subscription" "ingestion_uploads" {
   name    = local.subscription_name
   project = var.project_id
@@ -35,6 +43,35 @@ resource "google_pubsub_subscription" "ingestion_uploads" {
   ack_deadline_seconds       = 600
   message_retention_duration = "604800s"
   retain_acked_messages      = false
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.ingestion_uploads_dlq.id
+    max_delivery_attempts = 5
+  }
+}
+
+resource "google_pubsub_subscription" "ingestion_uploads_dlq" {
+  name    = local.dlq_subscription_name
+  project = var.project_id
+  topic   = google_pubsub_topic.ingestion_uploads_dlq.id
+
+  ack_deadline_seconds       = 600
+  message_retention_duration = "604800s"
+  retain_acked_messages      = false
+}
+
+resource "google_pubsub_topic_iam_member" "dlq_publisher" {
+  project = var.project_id
+  topic   = google_pubsub_topic.ingestion_uploads_dlq.name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${local.pubsub_sa}"
+}
+
+resource "google_pubsub_subscription_iam_member" "main_subscriber_for_dlq" {
+  project      = var.project_id
+  subscription = google_pubsub_subscription.ingestion_uploads.name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${local.pubsub_sa}"
 }
 
 resource "google_pubsub_subscription" "ingestion_uploads_test" {

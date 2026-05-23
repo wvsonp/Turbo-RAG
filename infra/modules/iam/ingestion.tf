@@ -23,6 +23,15 @@ resource "google_pubsub_subscription_iam_member" "ingestion_subscriber" {
   member       = "serviceAccount:${google_service_account.service["ingestion"].email}"
 }
 
+resource "google_pubsub_subscription_iam_member" "ingestion_dlq_subscriber" {
+  count = var.ingestion_dlq_subscription_name != "" ? 1 : 0
+
+  project      = var.project_id
+  subscription = var.ingestion_dlq_subscription_name
+  role         = "roles/pubsub.subscriber"
+  member       = "serviceAccount:${google_service_account.service["ingestion"].email}"
+}
+
 resource "google_project_iam_member" "workers_aiplatform_user" {
   count = var.ingestion_bucket_name != "" ? 1 : 0
 

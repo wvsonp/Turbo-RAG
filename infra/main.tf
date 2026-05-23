@@ -66,8 +66,9 @@ module "iam" {
   environment               = var.environment
   secret_ids                = module.secret_manager.secret_ids
   cloudsql_instance_name    = module.cloudsql.instance_name
-  ingestion_bucket_name       = module.pubsub.ingestion_bucket_name
-  ingestion_subscription_name = module.pubsub.ingestion_subscription_name
+  ingestion_bucket_name           = module.pubsub.ingestion_bucket_name
+  ingestion_subscription_name     = module.pubsub.ingestion_subscription_name
+  ingestion_dlq_subscription_name = module.pubsub.ingestion_dlq_subscription_name
 
   depends_on = [module.secret_manager, module.cloudsql, module.pubsub]
 }

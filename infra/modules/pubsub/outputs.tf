@@ -37,3 +37,13 @@ output "ingestion_test_subscription_name" {
   description = "Test Pub/Sub subscription name"
   value       = local.test_subscription_name
 }
+
+output "ingestion_dlq_topic_name" {
+  description = "Dead-letter Pub/Sub topic name"
+  value       = local.dlq_topic_name
+}
+
+output "ingestion_dlq_subscription_name" {
+  description = "Dead-letter Pub/Sub subscription name (inspection / replay)"
+  value       = local.dlq_subscription_name
+}

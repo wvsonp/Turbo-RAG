@@ -41,7 +41,7 @@ kubectl run wi-gcs-ingestion --rm -i --restart=Never -n platform \
   -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
 ```
 
-**Destroy order:** stop dispatcher/consumers → remove GCS notification (via `terraform destroy -target=module.pubsub`) → delete subscription IAM before subscriptions.
+**Destroy order:** stop dispatcher/consumers → drain `ingestion-uploads-dlq-sub` → remove `dead_letter_policy` from main sub (via Terraform) → remove GCS notification → delete subscription IAM before subscriptions.
 
 ## 2026-05-23 — 2.1 GCS + Pub/Sub dev apply
 
@@ -61,3 +61,27 @@ gcloud pubsub subscriptions pull ingestion-uploads-test-sub --auto-ack --limit=1
 ```
 
 **Not in 2.1:** DLQ topology ([2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md)); dispatcher service code ([2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md)).
+
+## 2026-05-24 — 2.5 DLQ topology dev apply
+
+**What:** Extended `infra/modules/pubsub/`: DLQ topic `ingestion-uploads-dlq`, subscription `ingestion-uploads-dlq-sub`, `dead_letter_policy` on main sub (`max_delivery_attempts = 5`), Pub/Sub service agent IAM (publisher on DLQ topic, subscriber on main sub). Helm `PUBSUB_DLQ_SUBSCRIPTION` on ingestion dispatcher.
+
+**Why:** Failed deliveries must land in an inspectable DLQ after bounded retries; Pub/Sub SA grants are required for forwarding (commonly missed).
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform apply -var-file=environments/dev.tfvars -target=module.pubsub
+
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="yaml(deadLetterPolicy)"
+
+gcloud pubsub topics get-iam-policy ingestion-uploads-dlq --project=turbo-rag
+
+# Inspect DLQ (no --auto-ack until payload recorded)
+gcloud pubsub subscriptions pull ingestion-uploads-dlq-sub \
+  --project=turbo-rag --limit=1
+```
+
+**Rollback:** Remove `dead_letter_policy` before destroying DLQ topic; drain DLQ sub first; scale ingestion dispatcher to 0 before subscription destroy.

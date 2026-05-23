@@ -10,6 +10,8 @@ env:
     value: turbo-rag
   - name: PUBSUB_SUBSCRIPTION
     value: ingestion-uploads-sub
+  - name: PUBSUB_DLQ_SUBSCRIPTION
+    value: ingestion-uploads-dlq-sub
   - name: PREFECT_API_URL
     value: http://prefect-server.prefect.svc.cluster.local:4200/api
   - name: PREFECT_DEPLOYMENT_NAME

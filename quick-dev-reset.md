@@ -1,7 +1,7 @@
 # Quick Dev Reset
 
 Use this when the dev GCP platform was destroyed and you want to recreate the
-current project state so work can continue at **Phase 2.5 DLQ + idempotency**.
+current project state so work can continue at **Phase 3 Query & retrieval**.
 
 Current target state:
 
@@ -11,8 +11,8 @@ Current target state:
 - Recreated stack: network, GKE, Artifact Registry, Cloud SQL, Secret Manager (containers + accessor SA), GCS ingestion bucket + Pub/Sub (`module.pubsub`), per-service Workload Identity with ingestion IAM (`module.iam`)
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion (dispatcher), query, workers, qdrant; Prefect server + worker
-- Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`; chunking experiments on `mlruns-pvc`
-- Next task after reset: `docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md`
+- Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`; DLQ on `ingestion-uploads-dlq`; chunking experiments on `mlruns-pvc`
+- Next task after reset: `docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md`
 
 ## Smoke pods
 
@@ -460,6 +460,13 @@ sleep 5
 gcloud pubsub subscriptions pull ingestion-uploads-test-sub --auto-ack --limit=1 --project=turbo-rag
 
 gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="yaml(deadLetterPolicy)"
+# Expected: deadLetterTopic → ingestion-uploads-dlq, maxDeliveryAttempts: 5
+
+gcloud pubsub topics get-iam-policy ingestion-uploads-dlq --project=turbo-rag
+# Expected: service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com → roles/pubsub.publisher
+
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
   --project=turbo-rag --format="value(ackDeadlineSeconds)"
 # Expected: 600
 ```
@@ -757,8 +764,25 @@ mlflow ui --backend-store-uri file:./mlruns --port 5000
 Production chunker default is `CHUNKER=fixed` (see `helm/workers/values-*.yaml`).
 Compare the three MLflow runs before switching to `recursive` or `semantic`.
 
+### 2.5 DLQ + idempotency (deploy + validate)
+
+Rebuild and deploy ingestion + workers (see [`docs/history/ingestion.md`](docs/history/ingestion.md) § 2.5), then:
+
+```bash
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="yaml(deadLetterPolicy)"
+
+kubectl run metrics-curl --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf http://ingestion.platform.svc.cluster.local:8080/metrics
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/metrics-curl -n platform --timeout=60s
+kubectl logs metrics-curl -n platform
+kubectl delete pod metrics-curl -n platform --ignore-not-found
+# Expected: ingestion_runs_total, ingestion_failures_total, dlq_undelivered_messages
+```
+
 Then continue with
-[`docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md`](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md).
+[`docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md`](docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md).
 
 Useful status docs:
 

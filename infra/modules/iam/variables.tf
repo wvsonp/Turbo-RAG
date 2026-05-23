@@ -36,3 +36,9 @@ variable "ingestion_subscription_name" {
   description = "Main Pub/Sub subscription name for scoped IAM (empty skips subscriber bindings)"
   default     = ""
 }
+
+variable "ingestion_dlq_subscription_name" {
+  type        = string
+  description = "DLQ Pub/Sub subscription name for dispatcher depth monitoring (empty skips)"
+  default     = ""
+}

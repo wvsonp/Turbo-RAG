@@ -86,6 +86,16 @@ def upsert_qdrant(
 
 
 @task
+def delete_orphan_qdrant_points(
+    orphan_point_ids: list[str], config: IngestionConfig
+) -> None:
+    if not orphan_point_ids:
+        return
+    store = QdrantStore(config)
+    store.delete_points(orphan_point_ids)
+
+
+@task
 async def persist_metadata(
     *,
     bucket: str,
@@ -96,7 +106,7 @@ async def persist_metadata(
     prefect_flow_run_id: str,
     pubsub_message_id: str | None,
     config: IngestionConfig,
-) -> uuid.UUID:
+) -> tuple[uuid.UUID, list[str]]:
     conn = await asyncpg.connect(
         user=config.db_user,
         database=config.db_name,
@@ -110,7 +120,7 @@ async def persist_metadata(
         chunk_records = build_chunk_records(
             bucket, object_name, generation, chunk_texts
         )
-        _, version_uuid = await repo.upsert_ingestion_metadata(
+        _, version_uuid, orphan_point_ids = await repo.upsert_ingestion_metadata(
             bucket=bucket,
             object_name=object_name,
             generation=generation,
@@ -119,7 +129,7 @@ async def persist_metadata(
             prefect_flow_run_id=prefect_flow_run_id,
             pubsub_message_id=pubsub_message_id,
         )
-        return version_uuid
+        return version_uuid, orphan_point_ids
     finally:
         await conn.close()
 
@@ -233,7 +243,7 @@ async def ingest_document(
             bucket, object_name, gen_int, chunk_texts
         )
 
-        version_uuid = await persist_metadata(
+        version_uuid, orphan_point_ids = await persist_metadata(
             bucket=bucket,
             object_name=object_name,
             generation=gen_int,
@@ -243,6 +253,8 @@ async def ingest_document(
             pubsub_message_id=pubsub_message_id,
             config=config,
         )
+
+        delete_orphan_qdrant_points(orphan_point_ids, config)
 
         upsert_qdrant(
             bucket=bucket,

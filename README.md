@@ -6,15 +6,15 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-23**. Phase 2.4 complete; Phase 2.5 (DLQ + idempotency) next.
+Last updated: **2026-05-24**. Phase 2 complete; Phase 3 (Query & retrieval) next.
 
 ### Phase summary
 
 | Phase | Focus | Status |
 | ----- | ----- | ------ |
 | 1 | Foundation — Infra as Code | **Done** (dev) |
-| 2 | Ingestion pipeline | **In progress** |
-| 3 | Query & retrieval service | Blocked (Phase 1) |
+| 2 | Ingestion pipeline | **Done** (dev) |
+| 3 | Query & retrieval service | **Next** |
 | 4 | Observability stack | Blocked (Phase 1) |
 | 5 | CI/CD + MLflow registry | Blocked (Phase 1) |
 | 6 | Scaling & hardening | Blocked (Phase 1) |
@@ -43,7 +43,7 @@ Last updated: **2026-05-23**. Phase 2.4 complete; Phase 2.5 (DLQ + idempotency) 
 | 2.2 | Prefect on GKE | **Done** | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
 | 2.3 | Ingestion flow | **Done** | [2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md) |
 | 2.4 | Chunking + MLflow | **Done** | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
-| 2.5 | DLQ + idempotency | Pending | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
+| 2.5 | DLQ + idempotency | **Done** | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
 
 ### Phases 3–6
 
@@ -51,4 +51,4 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **DLQ + idempotency** (2.5) — Terraform dead-letter subscription and replay runbook.
+1. **Query API skeleton** (3.1) — FastAPI hybrid search endpoints, JWT stub, SSE streaming scaffold.

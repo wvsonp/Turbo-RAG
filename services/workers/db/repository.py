@@ -37,7 +37,7 @@ class MetadataRepository:
         chunks: list[ChunkRecord],
         prefect_flow_run_id: str,
         pubsub_message_id: str | None,
-    ) -> tuple[uuid.UUID, uuid.UUID]:
+    ) -> tuple[uuid.UUID, uuid.UUID, list[str]]:
         uri = logical_uri(bucket, object_name)
         version_key = document_version_id(bucket, object_name, generation)
         now = datetime.now(timezone.utc)
@@ -116,6 +116,17 @@ class MetadataRepository:
                     chunk.qdrant_point_id,
                 )
 
+            orphan_rows = await self._conn.fetch(
+                """
+                SELECT qdrant_point_id
+                FROM chunks
+                WHERE document_version_id = $1 AND chunk_index >= $2
+                """,
+                version_uuid,
+                len(chunks),
+            )
+            orphan_point_ids = [row["qdrant_point_id"] for row in orphan_rows]
+
             await self._conn.execute(
                 """
                 DELETE FROM chunks
@@ -125,7 +136,7 @@ class MetadataRepository:
                 len(chunks),
             )
 
-        return document_id, version_uuid
+        return document_id, version_uuid, orphan_point_ids
 
     async def mark_completed(
         self, version_uuid: uuid.UUID, prefect_flow_run_id: str

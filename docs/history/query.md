@@ -52,3 +52,54 @@ kubectl delete pod query-smoke -n platform --ignore-not-found
 ```bash
 # Documentation-only decision; no runtime command required.
 ```
+
+## 2026-05-31 — 3.2 Hybrid search + RRF implementation
+
+**What:** Added shared `BM25SparseEncoder` and `reciprocal_rank_fusion` in `services/shared/rag_platform/`; updated `workers/qdrant/store.py` for dense+sparse collection schema with full chunk `text` in payloads; implemented `HybridRetriever` in `services/query/retrieval.py` (Vertex embed → dense search → sparse search → RRF → `RetrievedChunk` list with per-step latency logs); query `/ready` validates hybrid schema; RRF unit tests in `services/shared/tests/test_rrf.py`; collection recreate script at `scripts/recreate-qdrant-hybrid-collection.sh`.
+
+**Why:** Delivers end-to-end hybrid retrieval in one Qdrant store per the 3.2 architecture decision, with explicit RRF and timing hooks for 3.6 OTel traces and 3.3 reranking.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+
+# Unit tests (RRF)
+PYTHONPATH=services/shared python3 -c "
+from rag_platform.rrf import reciprocal_rank_fusion
+assert reciprocal_rank_fusion([['a','b'],['b','a']], k=60)[0][0] in ('a','b')
+print('OK')
+"
+
+# Build query image (context = services/)
+docker build -f query/Dockerfile -t query:local services/
+
+# After deploy: drop old collection, re-ingest, query
+bash scripts/recreate-qdrant-hybrid-collection.sh   # from cluster context
+echo "test" > /tmp/sample.txt
+gcloud storage cp /tmp/sample.txt gs://rag-ingestion-dev/incoming/sample.txt --project=turbo-rag
+
+kubectl run query-hybrid-smoke --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf -X POST http://query.platform.svc.cluster.local:8080/query \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"What is retrieval-augmented generation?","top_k":5}'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/query-hybrid-smoke -n platform --timeout=120s
+kubectl logs query-hybrid-smoke -n platform
+kubectl delete pod query-hybrid-smoke -n platform --ignore-not-found
+```
+
+## 2026-05-31 — 3.2 Sparse encoder FastEmbed migration
+
+**What:** Replaced the custom BM25-style hash sparse encoder with a shared `FastEmbedSparseEncoder` adapter using `Qdrant/bm25`. The ingestion flow now calls the document sparse embedding path from workers, query retrieval calls the query sparse embedding path, `SPARSE_MODEL_NAME` controls the model name, and `query` / `workers` install `fastembed`.
+
+**Why:** The maintained FastEmbed encoder removes custom tokenization and hash weighting logic while staying aligned with Qdrant sparse vectors and the existing dense+sparse collection design. Existing pre-FastEmbed sparse vectors must be dropped and re-ingested because sparse token IDs/weights are not compatible with the custom encoder.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+
+# Syntax validation for changed Python modules.
+python3 -m compileall services/shared/rag_platform services/query services/workers/qdrant services/shared/tests
+```

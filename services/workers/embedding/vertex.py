@@ -1,43 +1,5 @@
-"""Vertex AI text embeddings."""
+"""Vertex AI text embeddings — re-export from shared package."""
 
-from __future__ import annotations
+from rag_platform.embedding import VertexEmbedder
 
-import logging
-
-import vertexai
-from vertexai.language_models import TextEmbeddingModel
-
-from rag_platform.config import IngestionConfig
-from rag_platform.retry import with_retry_sync
-
-logger = logging.getLogger(__name__)
-
-
-class VertexEmbedder:
-    def __init__(self, config: IngestionConfig) -> None:
-        self._config = config
-        vertexai.init(project=config.project_id, location=config.vertex_region)
-        self._model = TextEmbeddingModel.from_pretrained(
-            config.vertex_embedding_model
-        )
-
-    def embed_batches(self, texts: list[str]) -> list[list[float]]:
-        if not texts:
-            return []
-        batch_size = self._config.embedding_batch_size
-        vectors: list[list[float]] = []
-        for start in range(0, len(texts), batch_size):
-            batch = texts[start : start + batch_size]
-
-            def _call(batch: list[str] = batch) -> list[list[float]]:
-                result = self._model.get_embeddings(batch)
-                return [item.values for item in result]
-
-            batch_vectors = with_retry_sync(
-                _call,
-                attempts=self._config.retry_attempts,
-                base_delay=self._config.retry_base_delay_seconds,
-                label="vertex_embed",
-            )
-            vectors.extend(batch_vectors)
-        return vectors
+__all__ = ["VertexEmbedder"]

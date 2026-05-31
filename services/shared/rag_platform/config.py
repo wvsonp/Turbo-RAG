@@ -36,6 +36,9 @@ class IngestionConfig:
     chunker_name: str
     retry_attempts: int
     retry_base_delay_seconds: float
+    sparse_model_name: str
+    dense_vector_name: str
+    sparse_vector_name: str
 
     @classmethod
     def from_env(cls) -> IngestionConfig:
@@ -62,6 +65,50 @@ class IngestionConfig:
             chunk_size=_int("CHUNK_SIZE", 512),
             chunk_overlap=_int("CHUNK_OVERLAP", 64),
             chunker_name=os.getenv("CHUNKER", "fixed").strip().lower(),
+            retry_attempts=_int("RETRY_ATTEMPTS", 3),
+            retry_base_delay_seconds=_float("RETRY_BASE_DELAY_SECONDS", 1.0),
+            sparse_model_name=os.getenv("SPARSE_MODEL_NAME", "Qdrant/bm25"),
+            dense_vector_name=os.getenv("DENSE_VECTOR_NAME", "dense"),
+            sparse_vector_name=os.getenv("SPARSE_VECTOR_NAME", "sparse"),
+        )
+
+
+@dataclass(frozen=True)
+class QueryConfig:
+    project_id: str
+    vertex_region: str
+    vertex_embedding_model: str
+    embedding_batch_size: int
+    qdrant_url: str
+    qdrant_collection: str
+    vector_size: int
+    sparse_model_name: str
+    dense_vector_name: str
+    sparse_vector_name: str
+    hybrid_prefetch_limit: int
+    rrf_k: int
+    retry_attempts: int
+    retry_base_delay_seconds: float
+
+    @classmethod
+    def from_env(cls) -> QueryConfig:
+        return cls(
+            project_id=os.getenv("GCP_PROJECT", "turbo-rag"),
+            vertex_region=os.getenv("VERTEX_REGION", "us-central1"),
+            vertex_embedding_model=os.getenv(
+                "VERTEX_EMBEDDING_MODEL", "text-embedding-004"
+            ),
+            embedding_batch_size=_int("EMBEDDING_BATCH_SIZE", 32),
+            qdrant_url=os.getenv(
+                "QDRANT_URL", "http://qdrant.platform.svc.cluster.local:6333"
+            ),
+            qdrant_collection=os.getenv("QDRANT_COLLECTION", "rag_chunks_dev"),
+            vector_size=_int("VECTOR_SIZE", 768),
+            sparse_model_name=os.getenv("SPARSE_MODEL_NAME", "Qdrant/bm25"),
+            dense_vector_name=os.getenv("DENSE_VECTOR_NAME", "dense"),
+            sparse_vector_name=os.getenv("SPARSE_VECTOR_NAME", "sparse"),
+            hybrid_prefetch_limit=_int("HYBRID_PREFETCH_LIMIT", 50),
+            rrf_k=_int("RRF_K", 60),
             retry_attempts=_int("RETRY_ATTEMPTS", 3),
             retry_base_delay_seconds=_float("RETRY_BASE_DELAY_SECONDS", 1.0),
         )

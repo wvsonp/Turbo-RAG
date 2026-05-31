@@ -12,8 +12,8 @@ Current target state:
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion (dispatcher), query, workers, qdrant; Prefect server + worker
 - Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`; DLQ on `ingestion-uploads-dlq`; chunking experiments on `mlruns-pvc`
-- Query: `POST /query` stub with Pydantic models on application node pool
-- Next task after reset: `docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md`
+- Query: hybrid dense+sparse retrieval with RRF on application node pool (`POST /query`)
+- Next task after reset: `docs/plan/phase-3-query-retrieval/3.3-reranker.md`
 
 ## Smoke pods
 
@@ -649,6 +649,7 @@ push and section 14 Prefect:
 
 ```bash
 cd /home/wvsonp/Turbo-RAG
+set -euo pipefail
 SHA=$(git rev-parse --short HEAD)
 REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
 
@@ -703,6 +704,7 @@ register the experiment deployment, and run it:
 
 ```bash
 cd /home/wvsonp/Turbo-RAG
+set -euo pipefail
 SHA=$(git rev-parse --short HEAD)
 REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
 
@@ -793,7 +795,7 @@ cd /home/wvsonp/Turbo-RAG
 SHA=$(git rev-parse --short HEAD)
 REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
 
-docker build -t query:local services/query
+docker build -f services/query/Dockerfile -t query:local services/
 docker tag query:local "${REGISTRY}/query:${SHA}"
 docker push "${REGISTRY}/query:${SHA}"
 
@@ -824,21 +826,104 @@ kubectl delete pod query-smoke -n platform --ignore-not-found
 # Expected: health JSON, query response with stub=true and empty chunks, docs HTTP 200
 ```
 
+Then continue with section 18 (Hybrid search + RRF).
+
+## 18. Hybrid search + RRF (3.2)
+
+After workers/query images include FastEmbed-backed sparse encoding (`SPARSE_MODEL_NAME`
+defaults to `Qdrant/bm25`), recreate the dev collection. Dense-only data and
+pre-FastEmbed custom sparse vectors are incompatible, so re-ingest documents
+before validating query retrieval:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+SHA=$(git rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+
+# Rebuild workers + ingestion (workers owns FastEmbed sparse upserts)
+for svc in ingestion workers; do
+  docker build -f "services/${svc}/Dockerfile" -t "${svc}:local" services/
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+  helm upgrade --install "$svc" "helm/${svc}" \
+    -f "helm/${svc}/values.yaml" \
+    -f "helm/${svc}/values-dev.yaml" \
+    --set "image.tag=${SHA}" \
+    --namespace platform
+done
+kubectl rollout status deployment/ingestion -n platform --timeout=120s
+
+# Re-register Prefect ingest deployment (workers image changed)
+# If this namespace is missing, run section 14 before continuing.
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" \
+  PREFECT_API_URL=http://prefect-server.prefect.svc.cluster.local:4200/api \
+  bash scripts/register-ingest-deployment.sh
+
+# Drop old dense-only or pre-FastEmbed custom-sparse collection
+kubectl run qdrant-drop-collection --restart=Never -n platform \
+  --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf -X DELETE \
+  "http://qdrant.platform.svc.cluster.local:6333/collections/rag_chunks_dev"
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/qdrant-drop-collection -n platform --timeout=60s
+kubectl delete pod qdrant-drop-collection -n platform --ignore-not-found
+
+# Re-ingest sample documents (creates hybrid collection on first upsert)
+echo "hybrid-test-$(date +%s)" > /tmp/sample.txt
+gcloud storage cp /tmp/sample.txt gs://rag-ingestion-dev/incoming/sample.txt --project=turbo-rag
+kubectl logs -n platform deploy/ingestion -f --tail=50
+
+bash scripts/upload-chunking-sample.sh
+gcloud storage cp gs://rag-ingestion-dev/experiments/chunking-sample.txt \
+  gs://rag-ingestion-dev/incoming/chunking-sample.txt --project=turbo-rag
+
+kubectl run qdrant-count --restart=Never -n platform \
+  --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf -X POST http://qdrant:6333/collections/rag_chunks_dev/points/count \
+  -H 'Content-Type: application/json' -d '{"exact":true}'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/qdrant-count -n platform --timeout=60s
+kubectl logs qdrant-count -n platform
+kubectl delete pod qdrant-count -n platform --ignore-not-found
+
+# Deploy query service with hybrid retrieval
+docker build -f services/query/Dockerfile -t query:local services/
+docker tag query:local "${REGISTRY}/query:${SHA}"
+docker push "${REGISTRY}/query:${SHA}"
+
+helm upgrade --install query helm/query \
+  -f helm/query/values.yaml \
+  -f helm/query/values-dev.yaml \
+  --set "image.tag=${SHA}" \
+  --namespace platform
+
+kubectl rollout status deployment/query -n platform --timeout=120s
+kubectl run query-hybrid-smoke --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- sh -c 'curl -sf http://query.platform.svc.cluster.local:8080/ready \
+  && curl -sf -X POST http://query.platform.svc.cluster.local:8080/query \
+  -H "Content-Type: application/json" \
+  -d "{\"query\":\"What is retrieval-augmented generation?\",\"top_k\":5}"'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/query-hybrid-smoke -n platform --timeout=120s
+kubectl logs query-hybrid-smoke -n platform
+kubectl delete pod query-hybrid-smoke -n platform --ignore-not-found
+# Expected: stub=false, non-empty chunks with text and RRF scores from FastEmbed sparse vectors
+```
+
+Run shared retrieval unit tests locally:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+PYTHONPATH=services/shared python3 -m pytest \
+  services/shared/tests/test_rrf.py \
+  services/shared/tests/test_sparse.py \
+  -v
+# Or without pytest:
+PYTHONPATH=services/shared python3 -c "from rag_platform.rrf import reciprocal_rank_fusion; assert reciprocal_rank_fusion([['a'],['b']], k=60)"
+```
+
 Then continue with
-[`docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md`](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md).
-
-Useful status docs:
-
-- `docs/STATUS.md`
-- `README.md`
-- `docs/history/IaC.md`
-- `docs/history/gke.md`
-- `docs/history/artifact_registry.md`
-- `docs/history/cloudsql.md`
-- `docs/history/secret_manager.md`
-- `docs/history/helm.md`
-- `docs/history/qdrant.md`
-- `docs/history/iam.md`
-- `docs/history/pubsub.md`
-- `docs/history/prefect.md`
-- `docs/history/ingestion.md`
+[`docs/plan/phase-3-query-retrieval/3.3-reranker.md`](docs/plan/phase-3-query-retrieval/3.3-reranker.md).

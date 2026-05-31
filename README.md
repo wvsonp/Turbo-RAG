@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-30**. Phase 3 in progress; hybrid search (3.2) next.
+Last updated: **2026-05-31**. Phase 3 in progress; reranker (3.3) next.
 
 ### Phase summary
 
@@ -50,7 +50,8 @@ Last updated: **2026-05-30**. Phase 3 in progress; hybrid search (3.2) next.
 | Step | Task | Status | Plan |
 | ---- | ---- | ------ | ---- |
 | 3.1 | Query API skeleton | **Done** | [3.1](docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md) |
-| 3.2 | Hybrid search + RRF | **Next** | [3.2](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md) |
+| 3.2 | Hybrid search + RRF | **Done** | [3.2](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md) |
+| 3.3 | CrossEncoder reranker | **Next** | [3.3](docs/plan/phase-3-query-retrieval/3.3-reranker.md) |
 
 ### Phases 3–6
 
@@ -58,4 +59,4 @@ See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per
 
 ### Suggested next steps
 
-1. **Hybrid search + RRF** (3.2) — Dense Qdrant search + BM25 with reciprocal rank fusion.
+1. **CrossEncoder reranker** (3.3) — Rerank hybrid candidates before answer generation.

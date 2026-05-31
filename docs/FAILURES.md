@@ -45,3 +45,27 @@
 **What was tried:** Mounting PVC at `/qdrant/storage` alone with default Qdrant paths.
 **Fix:** Set `QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage` and `QDRANT__STORAGE__SNAPSHOTS_PATH=/qdrant/storage/snapshots` in the Helm chart so all durable writes land on the PVC; delete pod to pick up env vars after upgrade.
 **Rule added:** _(none)_
+
+## [Phase 3] Hybrid retrieval deploy — wrong Dockerfile path and missing Prefect namespace
+**Date:** 2026-05-31
+**What happened:** The 3.2 deploy runbook used Dockerfile paths relative to the Docker build context instead of the repo root, and the Prefect deployment registration was attempted before the `prefect` namespace existed.
+**Symptoms:** `ERROR: failed to build: resolve : lstat ingestion: no such file or directory`, `ERROR: failed to build: resolve : lstat workers: no such file or directory`, followed by `Error from server (NotFound): namespaces "prefect" not found`.
+**What was tried:** Running the section 18 loop with `docker build -f "${svc}/Dockerfile" ... services/`, then pushing and upgrading Helm despite the failed builds.
+**Fix:** Update `quick-dev-reset.md` to use repo-root Dockerfile paths (`services/${svc}/Dockerfile` and `services/query/Dockerfile`) while keeping `services/` as the build context; ensure Prefect section 14 is complete before re-registering the ingest deployment.
+**Rule added:** _(none)_
+
+## [Phase 3] Ingestion rollout — dispatcher exits after early Prefect DNS failure
+**Date:** 2026-05-31
+**What happened:** The new ingestion pod started before the Prefect service was resolvable; the dispatcher thread crashed during startup and readiness stayed 503.
+**Symptoms:** `httpx.ConnectError: [Errno -2] Name or service not known` from `PrefectClient.resolve_deployment_id()`, followed by repeated `/ready` 503 responses.
+**What was tried:** Restarting section 18 after Prefect install while the old ingestion pod was still serving and the new pod had already crashed its dispatcher thread.
+**Fix:** Restart/rollout the ingestion deployment after Prefect service `prefect-server.prefect.svc.cluster.local` exists; longer-term fix is making dispatcher startup retry instead of permanently killing readiness on one transient DNS failure.
+**Rule added:** _(none)_
+
+## [Phase 3] Sparse encoder dependency check — local pip unavailable
+**Date:** 2026-05-31
+**What happened:** A local package-version check for `fastembed` could not run because the WSL `python3` environment has no `pip` module installed.
+**Symptoms:** `/usr/bin/python3: No module named pip`
+**What was tried:** `python3 -m pip index versions fastembed`
+**Fix:** Use the repo's existing requirements-file style and let Docker build/install resolve the dependency.
+**Rule added:** _(none)_

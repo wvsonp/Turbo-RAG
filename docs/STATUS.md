@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-31 (3.2 hybrid retrieval architecture decision)  
+**Last updated:** 2026-05-31 (3.2 sparse encoder FastEmbed migration)  
 **Current phase:** 3 — Query & retrieval  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -32,11 +32,12 @@
 - **2.4 Chunking + MLflow** — Three chunkers (`fixed`, `recursive`, `semantic`) with registry + `CHUNKER` config; Prefect `chunking-experiment` flow logs params/metrics/artifacts to durable `mlruns-pvc` at `/mlruns`; deploy/upload scripts; production default remains `fixed` pending experiment comparison ([plan](plan/phase-2-ingestion/2.4-chunking-mlflow.md), [`docs/history/ingestion.md`](history/ingestion.md))
 - **2.5 DLQ + idempotency** — DLQ topic/sub + `dead_letter_policy` (5 attempts) on main sub; Pub/Sub SA IAM; orphan Qdrant cleanup on document shrink; dispatcher nack-on-create-failure, failure logging, Prometheus counters, DLQ depth poll; replay runbook in history ([plan](plan/phase-2-ingestion/2.5-dlq-idempotency.md), [`docs/history/pubsub.md`](history/pubsub.md), [`docs/history/ingestion.md`](history/ingestion.md))
 - **3.1 Query API skeleton** — `POST /query` with Pydantic request/response models and async stub handler; OpenAPI at `/docs`; query Helm on `application` node pool ([plan](plan/phase-3-query-retrieval/3.1-query-api-skeleton.md), [`docs/history/query.md`](history/query.md))
-- **3.2 Hybrid retrieval architecture decision** — Use Qdrant dense + Qdrant sparse, generate BM25 sparse vectors in app code, store full chunk text in Qdrant payload, and re-ingest dev data after the collection schema change ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md), [`docs/history/query.md`](history/query.md))
+- **3.2 Hybrid search + RRF** — Qdrant dense+sparse collection schema; BM25 sparse encoder in `rag_platform`; ingestion upserts both vectors + full chunk text; query service runs dense/sparse search with app-side RRF, per-step latency logs, `/ready` checks hybrid schema; unit tests for RRF ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md), [`docs/history/query.md`](history/query.md))
+- **3.2 Sparse encoder FastEmbed migration** — Replaced the custom BM25-style hash encoder with `fastembed` `Qdrant/bm25`; the ingestion flow uses document sparse embeddings and query uses query sparse embeddings; added sparse adapter tests and service dependencies ([`docs/history/query.md`](history/query.md))
 
 ## In progress
 
-- **Phase 3 — Query & retrieval** — Implement hybrid search + RRF using Qdrant dense+sparse retrieval ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md))
+- **Phase 3 — Query & retrieval** — CrossEncoder reranker (3.3) ([plan](plan/phase-3-query-retrieval/3.3-reranker.md))
 
 ## Blocked
 
@@ -45,7 +46,8 @@ _(none)_
 ## Notes for agents
 
 - Phase 2 plan revised 2026-05-23 for robustness: dedicated dispatcher (ack after Prefect success), `bucket/object#generation` identity, metadata schema + stale cleanup, `prefect-server-sa` + `workers` WI for Cloud SQL, 600s ack deadline, no `--auto-ack` on main sub, durable MLflow PVC/GCS. See [`docs/plan/phase-2-ingestion/README.md`](plan/phase-2-ingestion/README.md).
-- Docker build context for `ingestion` and `workers` is `services/` (not `services/<svc>/`) because of shared `rag_platform` package.
+- Docker build context for `ingestion`, `workers`, and `query` is `services/` (not `services/<svc>/`) because of shared `rag_platform` package.
+- **3.2 migration:** Existing dense-only or pre-FastEmbed `rag_chunks_dev` data must be dropped before re-ingest — see `scripts/recreate-qdrant-hybrid-collection.sh` and `quick-dev-reset.md` section 18. Section 18 assumes Prefect section 14 is already complete.
 - Use **`docs/plan/<phase>/`** for acceptance criteria when implementing a step; update this file when a step’s criteria are met.
 - **`README.md`** — Public progress tables; update when a sub-phase step completes (e.g. 1.3, 1.4).
 - **`docs/history/`** — Learning journal after meaningful sub-tasks.

@@ -1,0 +1,30 @@
+# Prod overrides for prefect-server
+
+secret:
+  username: prefect-server-sa-prod@PROJECT_ID.iam
+  host: "127.0.0.1"
+  port: "5432"
+  database: prefect
+
+server:
+  extraInitContainers:
+    - name: cloud-sql-proxy
+      restartPolicy: Always
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.3
+      args:
+        - "--structured-logs"
+        - "--auto-iam-authn"
+        - "--private-ip"
+        - "--port=5432"
+        - "--address=127.0.0.1"
+        - "PROJECT_ID:REGION:INSTANCE"
+      securityContext:
+        runAsNonRoot: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: prefect-server-sa-prod@PROJECT_ID.iam.gserviceaccount.com

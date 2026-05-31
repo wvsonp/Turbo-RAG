@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  repository: qdrant/qdrant
+  pullPolicy: IfNotPresent
+  tag: "v1.13.4"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  httpPort: 6333
+  grpcPort: 6334
+
+persistence:
+  enabled: true
+  storageClassName: standard-rwo
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  mountPath: /qdrant/storage
+
+# Qdrant defaults write snapshots to ./snapshots under WORKDIR (/qdrant), which is
+# root-owned when only /qdrant/storage is mounted. Keep all durable paths on the PVC.
+config:
+  storagePath: /qdrant/storage
+  snapshotsPath: /qdrant/storage/snapshots
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

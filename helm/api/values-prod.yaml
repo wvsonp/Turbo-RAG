@@ -1,0 +1,9 @@
+# Prod overrides — set image.tag at deploy time (git SHA or release tag).
+image:
+  tag: ""
+
+replicaCount: 2
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: api-sa-prod@turbo-rag.iam.gserviceaccount.com

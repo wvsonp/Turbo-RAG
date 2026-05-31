@@ -1,2 +1,62 @@
 # Turbo-RAG
-Enterprise-Ready RAG system.
+
+Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse, MLflow.
+
+**Roadmap:** [`docs/project-roadmap.md`](docs/project-roadmap.md) · **Plans:** [`docs/plan/`](docs/plan/README.md) · **Status:** [`docs/STATUS.md`](docs/STATUS.md)
+
+## Project status
+
+Last updated: **2026-05-31**. Phase 3 in progress; reranker (3.3) next.
+
+### Phase summary
+
+| Phase | Focus | Status |
+| ----- | ----- | ------ |
+| 1 | Foundation — Infra as Code | **Done** (dev) |
+| 2 | Ingestion pipeline | **Done** (dev) |
+| 3 | Query & retrieval service | **In progress** |
+| 4 | Observability stack | Blocked (Phase 1) |
+| 5 | CI/CD + MLflow registry | Blocked (Phase 1) |
+| 6 | Scaling & hardening | Blocked (Phase 1) |
+
+### Phase 1 — Foundation (detail)
+
+| Step | Task | Status | Plan |
+| ---- | ---- | ------ | ---- |
+| 1.1 | GCP project bootstrap | **Done** | [1.1](docs/plan/phase-1-foundation/1.1-gcp-bootstrap.md) |
+| 1.2 | Terraform project structure | **Done** | [1.2](docs/plan/phase-1-foundation/1.2-terraform-layout.md) |
+| 1.2b | Network (VPC, PSA, NAT) | **Done** | [1.2b](docs/plan/phase-1-foundation/1.2b-network-foundation.md) |
+| 1.3 | GKE cluster | **Done** | [1.3](docs/plan/phase-1-foundation/1.3-gke-cluster.md) |
+| 1.4 | Artifact Registry | **Done** | [1.4](docs/plan/phase-1-foundation/1.4-artifact-registry.md) |
+| 1.5 | CloudSQL (PostgreSQL) | **Done** | [1.5](docs/plan/phase-1-foundation/1.5-cloudsql.md) |
+| 1.6 | Secret Manager | **Done** | [1.6](docs/plan/phase-1-foundation/1.6-secret-manager.md) |
+| 1.7 | Dockerize services (skeleton) | **Done** | [1.7](docs/plan/phase-1-foundation/1.7-service-skeletons.md) |
+| 1.8 | Helm charts | **Done** | [1.8](docs/plan/phase-1-foundation/1.8-helm-charts.md) |
+| 1.9 | Deploy Qdrant on GKE | **Done** | [1.9](docs/plan/phase-1-foundation/1.9-qdrant.md) |
+| 1.10 | Workload Identity bindings | **Done** | [1.10](docs/plan/phase-1-foundation/1.10-workload-identity.md) |
+
+### Phase 2 — Ingestion (detail)
+
+| Step | Task | Status | Plan |
+| ---- | ---- | ------ | ---- |
+| 2.1 | GCS bucket + Pub/Sub | **Done** | [2.1](docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md) |
+| 2.2 | Prefect on GKE | **Done** | [2.2](docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md) |
+| 2.3 | Ingestion flow | **Done** | [2.3](docs/plan/phase-2-ingestion/2.3-ingestion-flow.md) |
+| 2.4 | Chunking + MLflow | **Done** | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
+| 2.5 | DLQ + idempotency | **Done** | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
+
+### Phase 3 — Query & retrieval (detail)
+
+| Step | Task | Status | Plan |
+| ---- | ---- | ------ | ---- |
+| 3.1 | Query API skeleton | **Done** | [3.1](docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md) |
+| 3.2 | Hybrid search + RRF | **Done** | [3.2](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md) |
+| 3.3 | CrossEncoder reranker | **Next** | [3.3](docs/plan/phase-3-query-retrieval/3.3-reranker.md) |
+
+### Phases 3–6
+
+See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per phase.
+
+### Suggested next steps
+
+1. **CrossEncoder reranker** (3.3) — Rerank hybrid candidates before answer generation.

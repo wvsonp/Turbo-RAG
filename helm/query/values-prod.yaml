@@ -1,0 +1,23 @@
+image:
+  tag: ""
+
+replicaCount: 2
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: query-sa-prod@turbo-rag.iam.gserviceaccount.com
+
+env:
+  - name: GCP_PROJECT
+    value: turbo-rag
+  - name: QDRANT_URL
+    value: http://qdrant.platform.svc.cluster.local:6333
+  - name: QDRANT_COLLECTION
+    value: rag_chunks_prod
+  - name: VERTEX_REGION
+    value: us-central1
+  - name: HYBRID_PREFETCH_LIMIT
+    value: "50"
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: application

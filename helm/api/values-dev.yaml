@@ -1,0 +1,6 @@
+image:
+  tag: "32ef3b6"
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: api-sa-dev@turbo-rag.iam.gserviceaccount.com

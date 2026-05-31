@@ -1,0 +1,8 @@
+# Dev overrides for prefect-worker
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: workers-sa-dev@turbo-rag.iam.gserviceaccount.com
+
+baseJobTemplate:
+  existingConfigMapName: prefect-worker-base-job-template

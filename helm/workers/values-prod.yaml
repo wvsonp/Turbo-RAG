@@ -1,0 +1,24 @@
+image:
+  tag: ""
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: workers-sa-prod@turbo-rag.iam.gserviceaccount.com
+
+env:
+  - name: GCP_PROJECT
+    value: turbo-rag
+  - name: QDRANT_URL
+    value: http://qdrant.platform.svc.cluster.local:6333
+  - name: QDRANT_COLLECTION
+    value: rag_chunks_prod
+  - name: VERTEX_REGION
+    value: us-central1
+  - name: DB_USER
+    value: workers-sa-prod@turbo-rag.iam
+  - name: DB_NAME
+    value: rag_metadata
+  - name: CHUNKER
+    value: fixed
+  - name: MLFLOW_TRACKING_URI
+    value: file:/mlruns

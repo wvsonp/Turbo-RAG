@@ -1,0 +1,11 @@
+Qdrant is deployed as a StatefulSet with persistent storage.
+
+Health check (port-forward):
+  kubectl port-forward svc/{{ include "qdrant.fullname" . }} {{ .Values.service.httpPort }}:{{ .Values.service.httpPort }} -n {{ .Release.Namespace }}
+  curl -sf http://localhost:{{ .Values.service.httpPort }}/healthz
+
+In-cluster (same namespace):
+  curl -sf http://{{ include "qdrant.fullname" . }}:{{ .Values.service.httpPort }}/healthz
+
+PVC (for DR snapshots in Phase 6.3):
+  qdrant-storage-{{ include "qdrant.fullname" . }}-0

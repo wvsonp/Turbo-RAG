@@ -1,0 +1,162 @@
+## History
+
+What we did so far, in order (logic over detail):
+
+1. **Phase 2 plan robustness (2026-05-23)** — Updated `docs/plan/phase-2-ingestion/` README and steps 2.1–2.5 before implementation.
+2. **2.3 Ingestion flow (2026-05-23)** — E2E dispatcher + Prefect flow with metadata schema, Vertex embeddings, Qdrant upsert, stale cleanup.
+3. **2.4 Chunking + MLflow (2026-05-23)** — Three chunkers, experiment flow, durable `mlruns-pvc`, MLflow file tracking for Phase 5.2 migration.
+
+## 2026-05-23 — Phase 2 plan robustness
+
+**What:** Revised Phase 2 ingestion plans with explicit architecture decisions: dispatcher service for Pub/Sub (ack only after Prefect success), GCS `bucket/object#generation` document version identity, PostgreSQL metadata schema, Qdrant point ID formula, Prefect server/worker IAM split, batching/concurrency defaults, DLQ replay runbook, and durable MLflow storage (PVC or GCS copy).
+
+**Why:** Avoid hard-to-change mistakes in ack semantics, idempotency, stale vectors, Cloud SQL auth, and ephemeral experiment artifacts before coding 2.1.
+
+**Key references:**
+
+- [`docs/plan/phase-2-ingestion/README.md`](../plan/phase-2-ingestion/README.md) — invariants and data contracts
+- [`docs/plan/phase-2-ingestion/2.1-gcs-pubsub.md`](../plan/phase-2-ingestion/2.1-gcs-pubsub.md) — dispatcher contract, 600s ack deadline
+- [`docs/plan/phase-2-ingestion/2.2-prefect-on-gke.md`](../plan/phase-2-ingestion/2.2-prefect-on-gke.md) — `prefect-server-sa`, Cloud SQL IAM auth
+- [`docs/plan/phase-2-ingestion/2.3-ingestion-flow.md`](../plan/phase-2-ingestion/2.3-ingestion-flow.md) — metadata schema, stale cleanup, batching
+
+## 2026-05-23 — 2.3 Ingestion flow
+
+**What:** Implemented end-to-end ingestion: shared contracts in `services/shared/rag_platform/`; SQL migrations for `documents`, `document_versions`, `chunks`, `ingestion_runs`; Prefect `ingest-document` flow in `services/workers/flows/` (GCS download → parse → chunk → Vertex `text-embedding-004` → metadata commit → Qdrant upsert → superseded cleanup); Pub/Sub dispatcher in `services/ingestion/dispatcher.py` (pull without early ack, start Prefect run, extend deadline, ack on `Completed`); Helm env for dispatcher and workers; updated Prefect base job template (Cloud SQL proxy sidecar, workers image); `scripts/register-ingest-deployment.sh`.
+
+**Why:** Phase 2 requires automatic document indexing with idempotent version identity, PostgreSQL as source of truth, and clear Pub/Sub retry boundaries before DLQ (2.5) and chunking experiments (2.4).
+
+**Commands:**
+
+```bash
+# Build (context is services/ for shared package)
+cd /home/wvsonp/Turbo-RAG/services
+SHA=$(git -C .. rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+for svc in ingestion workers; do
+  docker build -f "${svc}/Dockerfile" -t "${svc}:local" .
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+done
+
+# Register Prefect deployment + redeploy dispatcher
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" bash ../scripts/register-ingest-deployment.sh
+helm upgrade --install ingestion ../helm/ingestion \
+  -f ../helm/ingestion/values.yaml -f ../helm/ingestion/values-dev.yaml \
+  --set "image.tag=${SHA}" --namespace platform
+
+# E2E trigger (never --auto-ack on ingestion-uploads-sub)
+echo "test-$(date +%s)" > /tmp/sample.txt
+gcloud storage cp /tmp/sample.txt gs://rag-ingestion-dev/incoming/sample.txt --project=turbo-rag
+kubectl logs -n platform deploy/ingestion -f --tail=50
+```
+
+**Layout:**
+
+| Component | Path |
+| --------- | ---- |
+| Contracts / config | `services/shared/rag_platform/` |
+| Dispatcher | `services/ingestion/dispatcher.py` |
+| Prefect flow | `services/workers/flows/ingest_document.py` |
+| DB migrations | `services/workers/migrations/` |
+| Deploy script | `scripts/register-ingest-deployment.sh` |
+
+**Not in 2.3:** DLQ Terraform ([2.5](../plan/phase-2-ingestion/2.5-dlq-idempotency.md)); chunking MLflow comparison ([2.4](../plan/phase-2-ingestion/2.4-chunking-mlflow.md)).
+
+## 2026-05-23 — 2.4 Chunking + MLflow
+
+**What:** Added three chunkers (`fixed`, `recursive`, `semantic`) behind `chunking/registry.py` with `CHUNKER` env config; Prefect `chunking-experiment` flow logs params/metrics/artifacts to MLflow file backend on `mlruns-pvc` (`/mlruns`); updated Prefect base job template with PVC mount; deploy/upload scripts; production default chunker remains `fixed` (2.3-compatible) until experiment metrics justify a switch.
+
+**Why:** Phase 2 requires comparable chunking experiments on a fixed test document with durable artifacts before Phase 5.2 MLflow server migration, without writing to production Qdrant.
+
+**Commands:**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/services
+SHA=$(git -C .. rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+docker build -f workers/Dockerfile -t workers:local .
+docker tag workers:local "${REGISTRY}/workers:${SHA}"
+docker push "${REGISTRY}/workers:${SHA}"
+
+kubectl apply -f helm/prefect/mlruns-pvc.yaml
+kubectl create configmap prefect-worker-base-job-template \
+  --from-file=baseJobTemplate.json=helm/prefect/base-job-template-dev.json \
+  -n prefect --dry-run=client -o yaml | kubectl apply -f -
+
+bash scripts/upload-chunking-sample.sh
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" bash scripts/register-chunking-experiment-deployment.sh
+prefect deployment run chunking-experiment/chunking-experiment  # from in-cluster pod
+
+# Durable mlruns path for Phase 5.2 migration
+kubectl run mlruns-ls --restart=Never -n prefect --image=busybox:1.36 \
+  --overrides='{"spec":{"containers":[{"name":"c","image":"busybox:1.36","command":["ls","-la","/mlruns"],"volumeMounts":[{"name":"mlruns","mountPath":"/mlruns"}]}],"volumes":[{"name":"mlruns","persistentVolumeClaim":{"claimName":"mlruns-pvc"}}]}}'
+```
+
+**Layout:**
+
+| Component | Path |
+| --------- | ---- |
+| Chunkers | `services/workers/chunking/` |
+| Experiment flow | `services/workers/flows/chunking_experiment.py` |
+| MLflow helpers | `services/workers/experiments/mlflow_tracking.py` |
+| PVC | `helm/prefect/mlruns-pvc.yaml` |
+| Deploy script | `scripts/register-chunking-experiment-deployment.sh` |
+| Sample upload | `scripts/upload-chunking-sample.sh` |
+
+**Default chunker:** `CHUNKER=fixed` in `helm/workers/values-*.yaml` (matches 2.3). Compare MLflow runs from `chunking-experiment` before switching to `recursive` or `semantic`.
+
+## 2026-05-24 — 2.5 DLQ + idempotency
+
+**What:** Orphan Qdrant point deletion when a document version shrinks (fewer chunks); dispatcher explicit nack on Prefect create failure, structured failure logging, Prometheus counters (`ingestion_runs_total`, `ingestion_failures_total`, `dlq_undelivered_messages`), periodic DLQ depth sample; DLQ replay runbook below. Terraform DLQ applied in dev (see [`pubsub.md`](pubsub.md)).
+
+**Why:** Phase 2 requires bounded Pub/Sub retries into a dead-letter queue, idempotent re-runs without duplicate vectors, and operational visibility before Phase 4 alerting.
+
+**Deploy (after code changes):**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/services
+SHA=$(git -C .. rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+for svc in ingestion workers; do
+  docker build -f "${svc}/Dockerfile" -t "${svc}:local" .
+  docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
+  docker push "${REGISTRY}/${svc}:${SHA}"
+done
+
+WORKERS_IMAGE="${REGISTRY}/workers:${SHA}" bash ../scripts/register-ingest-deployment.sh
+helm upgrade --install ingestion ../helm/ingestion \
+  -f ../helm/ingestion/values.yaml -f ../helm/ingestion/values-dev.yaml \
+  --set "image.tag=${SHA}" --namespace platform
+```
+
+**Validation:**
+
+```bash
+# DLQ wiring (Terraform)
+gcloud pubsub subscriptions describe ingestion-uploads-sub \
+  --project=turbo-rag --format="yaml(deadLetterPolicy)"
+
+# Dispatcher metrics (after new ingestion image)
+kubectl run metrics-curl --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf http://ingestion.platform.svc.cluster.local:8080/metrics
+kubectl logs metrics-curl -n platform
+kubectl delete pod metrics-curl -n platform --ignore-not-found
+
+# Idempotency: run flow twice for same (bucket, object_name, generation); Qdrant count unchanged
+kubectl run qdrant-count --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- curl -sf -X POST http://qdrant.platform.svc.cluster.local:6333/collections/rag_chunks_dev/points/count \
+  -H 'Content-Type: application/json' -d '{"exact":true}'
+
+# Supersede: upload new generation of same object; old points removed
+# Shrink: re-upload same generation with fewer chunks; orphan indices removed from Qdrant
+```
+
+**DLQ replay runbook:**
+
+1. Inspect (do not ack until recorded): `gcloud pubsub subscriptions pull ingestion-uploads-dlq-sub --project=turbo-rag --limit=1`
+2. Fix root cause (bad file, flow bug, quota).
+3. Replay: republish to `ingestion-uploads` **or** Prefect manual run with same `{bucket, object_name, generation}`.
+4. Confirm idempotent — same `document_version_id` must not increase Qdrant point count.
+5. Ack DLQ message after successful replay: `gcloud pubsub subscriptions pull ingestion-uploads-dlq-sub --auto-ack --limit=1 --project=turbo-rag`
+
+**Poison message test:** Publish or upload an object that fails ingestion (missing object, corrupt parse, oversize). Dispatcher nacks; after 5 delivery attempts message appears on `ingestion-uploads-dlq-sub`. Use a fast-failing object to avoid long waits with 600s ack deadline.

@@ -1,0 +1,50 @@
+---
+description: Update STATUS, README, and history when work completes
+alwaysApply: true
+---
+
+# Task lifecycle — documentation after work
+
+When a task, step, or sub-task is done, update docs in the same turn. Do not tell the user work is finished without updating `docs/STATUS.md`.
+
+## Tier 1 — Every completed task
+
+Update [`docs/STATUS.md`](../../docs/STATUS.md):
+
+1. Move the item from **In progress** to **Completed** (or add under **Completed** if ad hoc)
+2. Set **In progress** to the next logical step from the roadmap
+3. Update **Last updated** date
+4. Add new blockers under **Blocked** with a short reason
+
+## Tier 2 — Sub-phase step complete (e.g. 1.3, 1.4)
+
+Also update [`README.md`](../../README.md) progress tables:
+
+- Phase summary row status
+- Phase detail table row for that step (status + brief notes)
+- **Suggested next steps** to match current focus
+
+Keep README’s public-facing style (tables, high-level); do not duplicate full command logs here.
+
+Also update [`quick-dev-reset.md`](../../quick-dev-reset.md) when the completed work changes the commands, order, validation, outputs, dependencies, or target state needed to recreate the current dev platform after Terraform destroy. This is especially required after Terraform module changes, applied infra steps, new required tools/APIs, new bootstrap assumptions, or changes to the next resumable roadmap step.
+
+## Tier 3 — Meaningful sub-task complete
+
+Also append to the matching `docs/history/<component>.md` (see `documentation.mdc` for file map and format):
+
+- What was done
+- **Why** it mattered
+- Concise, copy-paste commands that worked
+
+Skip trivial edits (typos, one-line fixes). For reusable gotchas worth keeping long-term, add or extend a section in `docs/history/lessons.md`.
+
+## Doc roles (quick reference)
+
+| Doc | Role |
+|-----|------|
+| `docs/STATUS.md` | Agent task board — done / in progress / blocked |
+| `README.md` | Public progress snapshot (per sub-step) |
+| `quick-dev-reset.md` | Ordered dev rebuild runbook after Terraform destroy |
+| `docs/history/` | Learning journal — steps, rationale, commands |
+| `docs/FAILURES.md` | Failure write-ups (see `log-failure.mdc`) |
+| `docs/project-roadmap.md` | Source of truth for phases — do not edit unless user asks |

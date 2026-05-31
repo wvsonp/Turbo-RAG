@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-31 (3.2 sparse encoder FastEmbed migration)  
+**Last updated:** 2026-05-31 (GKE-only cost reset runbook cleanup)  
 **Current phase:** 3 — Query & retrieval  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -34,6 +34,7 @@
 - **3.1 Query API skeleton** — `POST /query` with Pydantic request/response models and async stub handler; OpenAPI at `/docs`; query Helm on `application` node pool ([plan](plan/phase-3-query-retrieval/3.1-query-api-skeleton.md), [`docs/history/query.md`](history/query.md))
 - **3.2 Hybrid search + RRF** — Qdrant dense+sparse collection schema; BM25 sparse encoder in `rag_platform`; ingestion upserts both vectors + full chunk text; query service runs dense/sparse search with app-side RRF, per-step latency logs, `/ready` checks hybrid schema; unit tests for RRF ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md), [`docs/history/query.md`](history/query.md))
 - **3.2 Sparse encoder FastEmbed migration** — Replaced the custom BM25-style hash encoder with `fastembed` `Qdrant/bm25`; the ingestion flow uses document sparse embeddings and query uses query sparse embeddings; added sparse adapter tests and service dependencies ([`docs/history/query.md`](history/query.md))
+- **Quick dev reset — GKE-only cost path cleanup** — Clarified the targeted `module.gke` destroy/restore path, Qdrant scale-down before PVC disk cleanup, stale image rebuild command, and Phase 3 resume checkpoints in [`quick-dev-reset.md`](../quick-dev-reset.md); added GKE/history lesson notes
 
 ## In progress
 

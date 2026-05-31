@@ -24,45 +24,72 @@ create pod → wait for `Completed` → `kubectl logs` → delete.
 
 ## Cost control — destroy GKE only
 
-Use this to stop the main dev spend (GKE node VMs and disks) while keeping
-everything that is cheap to run or painful to recreate.
+Use this to stop the main dev spend while keeping the stateful GCP resources
+that are cheap to run or painful to recreate.
 
-**Destroy (expensive):**
+### What changes
 
 | Resource | Why |
 | -------- | --- |
-| GKE cluster + node pools (`module.gke`) | Largest ongoing cost: fixed system nodes + application pool |
+| Destroy: GKE cluster + node pools (`module.gke`) | Largest ongoing cost: fixed system nodes + application pool |
+| Optionally delete: Qdrant and MLflow PVC disks | Prevent orphan persistent disks from continuing to bill after cluster deletion |
+| Keep: network / VPC / PSA / NAT (`module.network`) | Peering and CIDR layout are tedious to rebuild |
+| Keep: Cloud SQL (`module.cloudsql`) | Databases, backups, IAM DB users |
+| Keep: Secret Manager (`module.secret_manager`) | Secret values are manual; containers + IAM are in Terraform |
+| Keep: Artifact Registry (`module.artifact_registry`) | Pushed service images |
+| Keep: GCS + Pub/Sub (`module.pubsub`) | Bucket objects and notification wiring |
+| Keep: Workload Identity (`module.iam`) | GCP SAs, WI bindings, Cloud SQL IAM users |
+| Keep: state bucket `gs://rag-platform-tf-state` | Bootstrap; always outside teardown |
 
-**Keep running (do not destroy):**
+Cloud SQL (`db-f1-micro`) still incurs a small monthly charge. Destroy it only
+if you also accept losing database data and re-running secret value setup; that
+is a different teardown path and is not covered here.
 
-| Resource | Why keep |
-| -------- | -------- |
-| Network / VPC / PSA / NAT (`module.network`) | Peering and CIDR layout are tedious to rebuild |
-| Cloud SQL (`module.cloudsql`) | Data, backups, IAM DB users |
-| Secret Manager (`module.secret_manager`) | Secret **values** are manual; containers + IAM are in Terraform |
-| Artifact Registry (`module.artifact_registry`) | Pushed service images |
-| GCS + Pub/Sub (`module.pubsub`) | Bucket objects and notification wiring |
-| Workload Identity (`module.iam`) | GCP SAs, WI bindings, Cloud SQL IAM users |
-| State bucket `gs://rag-platform-tf-state` | Bootstrap; always outside teardown |
+Deleting the cluster removes in-cluster workloads, Helm releases, CSI driver
+pods, and Kubernetes objects. GCP-side IAM, secrets, SQL, bucket, registry, and
+Terraform state are unchanged.
 
-Cloud SQL (`db-f1-micro`) still incurs a small monthly charge. Destroy it
-separately only if you also accept losing DB data and re-running secret value
-setup — not covered here.
+GKE retains persistent disks backing PVCs during cluster deletion. If the goal is
+cost saving and Qdrant vectors / MLflow artifacts can be regenerated, delete the
+PVCs before destroying GKE. If the cluster is already gone, skip this step and
+check for orphan disks after the destroy.
 
-**What you lose when GKE goes away:** all cluster workloads, Helm releases,
-CSI driver pods, and PVC data (including Qdrant vectors). GCP-side IAM, secrets,
-SQL, bucket, and registry are unchanged.
+```bash
+# Stop the Qdrant pod first; otherwise pvc-protection keeps the claim Terminating.
+kubectl get statefulset qdrant -n platform >/dev/null 2>&1 && \
+  kubectl scale statefulset qdrant -n platform --replicas=0
 
-No `helm uninstall` required; deleting the cluster removes in-cluster resources.
+kubectl get pod qdrant-0 -n platform >/dev/null 2>&1 && \
+  kubectl wait --for=delete pod/qdrant-0 -n platform --timeout=300s
+
+kubectl get namespace platform >/dev/null 2>&1 && \
+  kubectl delete pvc qdrant-storage-qdrant-0 \
+    -n platform --ignore-not-found --wait=true --timeout=300s
+
+kubectl get namespace prefect >/dev/null 2>&1 && \
+  kubectl delete pvc mlruns-pvc \
+    -n prefect --ignore-not-found --wait=true --timeout=300s
+```
+
+Preview the destroy before approving it. The plan should only remove
+`module.gke` resources.
 
 ```bash
 cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform plan -destroy -var-file=environments/dev.tfvars -target=module.gke
 terraform destroy -var-file=environments/dev.tfvars -target=module.gke
 ```
 
-GKE `deletion_protection` is `false` in dev by default. Confirm with
-`terraform plan -destroy -var-file=environments/dev.tfvars -target=module.gke`
-before typing `yes`.
+GKE `deletion_protection` is `false` in dev by default. After destroy, confirm
+there are no old detached PVC disks still billing. Delete only disks that you
+recognize as old dev PVCs.
+
+```bash
+gcloud compute disks list \
+  --filter='name~"pvc-" AND -users:*' \
+  --format='table(name,zone,sizeGb,status,users)'
+```
 
 ### Bring GKE back
 
@@ -135,7 +162,7 @@ gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
 SHA=$(git rev-parse --short HEAD)
 for svc in api ingestion query workers; do
-  docker build -t "${svc}:local" "services/${svc}"
+  docker build -f "services/${svc}/Dockerfile" -t "${svc}:local" services/
   docker tag "${svc}:local" "${REGISTRY}/${svc}:${SHA}"
   docker push "${REGISTRY}/${svc}:${SHA}"
 done
@@ -166,6 +193,8 @@ kubectl delete pod curl-smoke -n platform --ignore-not-found
 
 If you rebuilt images in step 5, add `--set "image.tag=${SHA}"` to each
 `helm upgrade --install` instead of relying on `values-dev.yaml` tags.
+The `query` pod can stay NotReady until step 7 and section 18 recreate the
+Qdrant hybrid collection.
 
 **7. Deploy Qdrant (fresh PVC — vector data from before teardown is gone)**
 
@@ -242,7 +271,14 @@ kubectl logs wi-gcs-ingestion -n platform
 kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
 ```
 
-Then continue with section 14 (Prefect on GKE), then section 15 (Ingestion flow).
+**10. Resume the current Phase 3 state**
+
+After GKE is back, use the later sections as checkpoints:
+
+1. Section 14: deploy Prefect on GKE.
+2. Section 15: register the ingestion flow and redeploy ingestion/workers.
+3. Section 18: recreate the Qdrant hybrid collection, re-ingest sample data, and validate query retrieval.
+4. Continue with `docs/plan/phase-3-query-retrieval/3.3-reranker.md`.
 
 For a full platform teardown (all modules), see destroy order notes in
 `docs/history/IaC.md`, `docs/history/iam.md`, and `docs/history/cloudsql.md`.

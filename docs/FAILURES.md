@@ -69,3 +69,11 @@
 **What was tried:** `python3 -m pip index versions fastembed`
 **Fix:** Use the repo's existing requirements-file style and let Docker build/install resolve the dependency.
 **Rule added:** _(none)_
+
+## [Phase 3] GKE cost teardown — Qdrant PVC delete wait timed out
+**Date:** 2026-05-31
+**What happened:** The GKE-only cost teardown runbook deleted the Qdrant PVC but timed out waiting for Kubernetes to finish the delete.
+**Symptoms:** `persistentvolumeclaim "qdrant-storage-qdrant-0" deleted from platform namespace` followed by `error: timed out waiting for the condition on persistentvolumeclaims/qdrant-storage-qdrant-0`; `mlruns-pvc` deletion returned without a timeout.
+**What was tried:** `kubectl delete pvc qdrant-storage-qdrant-0 -n platform --ignore-not-found --wait=true --timeout=300s` and `kubectl delete pvc mlruns-pvc -n prefect --ignore-not-found --wait=true --timeout=300s`
+**Fix:** Stop the Qdrant StatefulSet before deleting its PVC (`kubectl scale statefulset qdrant -n platform --replicas=0`, wait for `pod/qdrant-0` deletion, then wait for the PVC delete); update `quick-dev-reset.md` so future GKE-only teardowns stop Qdrant before PVC cleanup.
+**Rule added:** _(none)_

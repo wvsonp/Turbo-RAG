@@ -8,6 +8,10 @@
 
 > **Note:** On a regional cluster, `node_count` and `min_node_count` / `max_node_count` are **per zone** (≈3× nodes in us-central1). Use `total_min_node_count` / `total_max_node_count` for region-wide limits. Default 100GB boot disks add up fast against `SSD_TOTAL_GB` (500 in new projects).
 
+## GKE — PVC disks after cluster deletion
+
+> **Note:** Deleting a GKE cluster removes workloads and nodes, but persistent disks backing PVCs can remain detached and keep billing. For disposable dev data, stop pods that mount the PVCs first (for example scale Qdrant StatefulSet to zero), delete known PVCs such as Qdrant and MLflow before destroying the cluster, then check for old detached `pvc-*` disks.
+
 ## kubectl — smoke pod attach race
 
 > **Note:** `kubectl run --rm -i` on fast one-shot containers (curl, `nc`, short

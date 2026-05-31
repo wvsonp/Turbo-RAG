@@ -1,0 +1,17 @@
+name: turbo-rag-workers
+prefect-version: ">=3.0.0"
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /app
+
+deployments:
+  - name: ingest-document
+    entrypoint: flows/ingest_document.py:ingest_document
+    work_pool:
+      name: kubernetes
+
+  - name: chunking-experiment
+    entrypoint: flows/chunking_experiment.py:chunking_experiment
+    work_pool:
+      name: kubernetes

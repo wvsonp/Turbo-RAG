@@ -21,7 +21,7 @@ kubectl run prefect-deploy-chunking-experiment --restart=Never -n "$NAMESPACE" \
         {"name": "MLFLOW_TRACKING_URI", "value": "file:/mlruns"},
         {"name": "EXPERIMENT_TEST_GCS_URI", "value": "gs://rag-ingestion-dev/experiments/chunking-sample.txt"}
       ],
-      "command": ["sh", "-c", "prefect work-pool inspect kubernetes >/dev/null 2>&1 || prefect work-pool create kubernetes --type kubernetes; prefect deploy flows/chunking_experiment.py:chunking_experiment --name chunking-experiment --pool kubernetes --job-variable image=${WORKERS_IMAGE} && echo DEPLOY_OK && sleep 120"]
+      "command": ["sh", "-c", "prefect work-pool inspect kubernetes >/dev/null 2>&1 || prefect work-pool create kubernetes --type kubernetes; prefect deploy --name chunking-experiment --pool kubernetes --job-variable image=${WORKERS_IMAGE} && echo DEPLOY_OK && sleep 120"]
     }]
   }
 }

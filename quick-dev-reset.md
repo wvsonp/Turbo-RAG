@@ -12,7 +12,8 @@ Current target state:
 - Cluster addons: Secret Store CSI driver + GCP provider (kubectl manifests)
 - Helm: api, ingestion (dispatcher), query, workers, qdrant; Prefect server + worker
 - Ingestion: dispatcher → Prefect `ingest-document` flow → Qdrant + `rag_metadata`; DLQ on `ingestion-uploads-dlq`; chunking experiments on `mlruns-pvc`
-- Next task after reset: `docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md`
+- Query: `POST /query` stub with Pydantic models on application node pool
+- Next task after reset: `docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md`
 
 ## Smoke pods
 
@@ -781,8 +782,50 @@ kubectl delete pod metrics-curl -n platform --ignore-not-found
 # Expected: ingestion_runs_total, ingestion_failures_total, dlq_undelivered_messages
 ```
 
+Then continue with section 17 (Query API skeleton).
+
+## 17. Query API skeleton (3.1)
+
+Build, push, and deploy the query service with the retrieval stub:
+
+```bash
+cd /home/wvsonp/Turbo-RAG
+SHA=$(git rev-parse --short HEAD)
+REGISTRY="us-central1-docker.pkg.dev/turbo-rag/rag-platform"
+
+docker build -t query:local services/query
+docker tag query:local "${REGISTRY}/query:${SHA}"
+docker push "${REGISTRY}/query:${SHA}"
+
+helm upgrade --install query helm/query \
+  -f helm/query/values.yaml \
+  -f helm/query/values-dev.yaml \
+  --set "image.tag=${SHA}" \
+  --namespace platform --create-namespace
+
+kubectl rollout status deployment/query -n platform --timeout=120s
+kubectl get pod -n platform -l app.kubernetes.io/name=query \
+  -o jsonpath='{.items[0].spec.nodeSelector}{"\n"}'
+# Expected nodeSelector key: cloud.google.com/gke-nodepool=application
+```
+
+Validate `POST /query` and OpenAPI:
+
+```bash
+kubectl run query-smoke --restart=Never -n platform --image=curlimages/curl:8.5.0 \
+  --command -- sh -c 'curl -sf http://query.platform.svc.cluster.local:8080/health \
+  && curl -sf -X POST http://query.platform.svc.cluster.local:8080/query \
+  -H "Content-Type: application/json" -d "{\"query\":\"What is RAG?\",\"top_k\":5}" \
+  && curl -sf -o /dev/null -w "%{http_code}" http://query.platform.svc.cluster.local:8080/docs'
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/query-smoke -n platform --timeout=60s
+kubectl logs query-smoke -n platform
+kubectl delete pod query-smoke -n platform --ignore-not-found
+# Expected: health JSON, query response with stub=true and empty chunks, docs HTTP 200
+```
+
 Then continue with
-[`docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md`](docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md).
+[`docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md`](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md).
 
 Useful status docs:
 

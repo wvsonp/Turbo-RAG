@@ -4,3 +4,6 @@ image:
 serviceAccount:
   annotations:
     iam.gke.io/gcp-service-account: query-sa-dev@turbo-rag.iam.gserviceaccount.com
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: application

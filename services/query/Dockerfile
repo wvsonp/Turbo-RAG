@@ -8,7 +8,7 @@ WORKDIR /app
 RUN adduser --disabled-password --gecos "" appuser
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
-COPY main.py .
+COPY main.py models.py ./
 USER appuser
 ENV SERVICE_NAME=query
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

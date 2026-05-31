@@ -6,3 +6,6 @@ replicaCount: 2
 serviceAccount:
   annotations:
     iam.gke.io/gcp-service-account: query-sa-prod@turbo-rag.iam.gserviceaccount.com
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: application

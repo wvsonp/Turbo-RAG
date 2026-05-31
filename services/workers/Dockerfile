@@ -19,6 +19,7 @@ COPY workers/embedding /app/embedding
 COPY workers/qdrant /app/qdrant
 COPY workers/gcs /app/gcs
 COPY workers/migrations /app/migrations
+COPY workers/prefect.yaml /app/prefect.yaml
 COPY shared/rag_platform /app/rag_platform
 ENV PYTHONPATH=/app
 USER appuser

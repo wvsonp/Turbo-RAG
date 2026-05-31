@@ -6,7 +6,7 @@ Enterprise-ready RAG platform on GCP: Terraform, GKE, Qdrant, Prefect, Langfuse,
 
 ## Project status
 
-Last updated: **2026-05-24**. Phase 2 complete; Phase 3 (Query & retrieval) next.
+Last updated: **2026-05-30**. Phase 3 in progress; hybrid search (3.2) next.
 
 ### Phase summary
 
@@ -14,7 +14,7 @@ Last updated: **2026-05-24**. Phase 2 complete; Phase 3 (Query & retrieval) next
 | ----- | ----- | ------ |
 | 1 | Foundation — Infra as Code | **Done** (dev) |
 | 2 | Ingestion pipeline | **Done** (dev) |
-| 3 | Query & retrieval service | **Next** |
+| 3 | Query & retrieval service | **In progress** |
 | 4 | Observability stack | Blocked (Phase 1) |
 | 5 | CI/CD + MLflow registry | Blocked (Phase 1) |
 | 6 | Scaling & hardening | Blocked (Phase 1) |
@@ -45,10 +45,17 @@ Last updated: **2026-05-24**. Phase 2 complete; Phase 3 (Query & retrieval) next
 | 2.4 | Chunking + MLflow | **Done** | [2.4](docs/plan/phase-2-ingestion/2.4-chunking-mlflow.md) |
 | 2.5 | DLQ + idempotency | **Done** | [2.5](docs/plan/phase-2-ingestion/2.5-dlq-idempotency.md) |
 
+### Phase 3 — Query & retrieval (detail)
+
+| Step | Task | Status | Plan |
+| ---- | ---- | ------ | ---- |
+| 3.1 | Query API skeleton | **Done** | [3.1](docs/plan/phase-3-query-retrieval/3.1-query-api-skeleton.md) |
+| 3.2 | Hybrid search + RRF | **Next** | [3.2](docs/plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md) |
+
 ### Phases 3–6
 
 See [`docs/plan/`](docs/plan/README.md) for step-by-step acceptance criteria per phase.
 
 ### Suggested next steps
 
-1. **Query API skeleton** (3.1) — FastAPI hybrid search endpoints, JWT stub, SSE streaming scaffold.
+1. **Hybrid search + RRF** (3.2) — Dense Qdrant search + BM25 with reciprocal rank fusion.

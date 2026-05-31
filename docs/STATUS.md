@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-05-30 (3.1 query API skeleton)  
+**Last updated:** 2026-05-31 (3.2 hybrid retrieval architecture decision)  
 **Current phase:** 3 — Query & retrieval  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -32,10 +32,11 @@
 - **2.4 Chunking + MLflow** — Three chunkers (`fixed`, `recursive`, `semantic`) with registry + `CHUNKER` config; Prefect `chunking-experiment` flow logs params/metrics/artifacts to durable `mlruns-pvc` at `/mlruns`; deploy/upload scripts; production default remains `fixed` pending experiment comparison ([plan](plan/phase-2-ingestion/2.4-chunking-mlflow.md), [`docs/history/ingestion.md`](history/ingestion.md))
 - **2.5 DLQ + idempotency** — DLQ topic/sub + `dead_letter_policy` (5 attempts) on main sub; Pub/Sub SA IAM; orphan Qdrant cleanup on document shrink; dispatcher nack-on-create-failure, failure logging, Prometheus counters, DLQ depth poll; replay runbook in history ([plan](plan/phase-2-ingestion/2.5-dlq-idempotency.md), [`docs/history/pubsub.md`](history/pubsub.md), [`docs/history/ingestion.md`](history/ingestion.md))
 - **3.1 Query API skeleton** — `POST /query` with Pydantic request/response models and async stub handler; OpenAPI at `/docs`; query Helm on `application` node pool ([plan](plan/phase-3-query-retrieval/3.1-query-api-skeleton.md), [`docs/history/query.md`](history/query.md))
+- **3.2 Hybrid retrieval architecture decision** — Use Qdrant dense + Qdrant sparse, generate BM25 sparse vectors in app code, store full chunk text in Qdrant payload, and re-ingest dev data after the collection schema change ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md), [`docs/history/query.md`](history/query.md))
 
 ## In progress
 
-- **Phase 3 — Query & retrieval** — Hybrid search + RRF ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md))
+- **Phase 3 — Query & retrieval** — Implement hybrid search + RRF using Qdrant dense+sparse retrieval ([plan](plan/phase-3-query-retrieval/3.2-hybrid-search-rrf.md))
 
 ## Blocked
 

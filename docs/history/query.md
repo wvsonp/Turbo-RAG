@@ -41,3 +41,14 @@ kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reas
 kubectl logs query-smoke -n platform
 kubectl delete pod query-smoke -n platform --ignore-not-found
 ```
+
+## 2026-05-31 — 3.2 hybrid retrieval architecture decision
+
+**What:** Chose Qdrant dense + Qdrant sparse for 3.2 hybrid retrieval. BM25 sparse vectors will be generated in application code for both ingestion and query-time retrieval; full chunk text will be stored in Qdrant payloads; dev data must be re-ingested after the dense+sparse collection schema change.
+
+**Why:** Keeps dense and sparse retrieval in one operational store, aligns with the roadmap's Qdrant hybrid-search direction, and avoids introducing a sidecar BM25 index before the platform needs that extra moving part.
+
+**Commands:**
+```bash
+# Documentation-only decision; no runtime command required.
+```

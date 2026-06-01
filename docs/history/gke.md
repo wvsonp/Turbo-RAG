@@ -61,3 +61,31 @@ gcloud container clusters get-credentials rag-platform-dev --region us-central1 
 kubectl get nodes -L cloud.google.com/gke-nodepool
 gcloud container node-pools list --cluster rag-platform-dev --region us-central1 --project turbo-rag
 ```
+
+## 2026-05-31 — GKE-only cost control runbook
+
+**What:** Updated `quick-dev-reset.md` with a cleaner GKE-only destroy and restore path: delete regenerable PVCs first, preview a targeted `module.gke` destroy, keep stateful GCP services, and resume through Prefect, ingestion, and hybrid query validation.
+
+**Why:** GKE nodes are the main dev cost driver, but deleting only the cluster should not force a full platform rebuild. The runbook now makes the cheap/painful resources explicit and avoids stale Docker build context commands during restore.
+
+**Commands:**
+```bash
+kubectl get statefulset qdrant -n platform >/dev/null 2>&1 && \
+  kubectl scale statefulset qdrant -n platform --replicas=0
+
+kubectl get pod qdrant-0 -n platform >/dev/null 2>&1 && \
+  kubectl wait --for=delete pod/qdrant-0 -n platform --timeout=300s
+
+kubectl get namespace platform >/dev/null 2>&1 && \
+  kubectl delete pvc qdrant-storage-qdrant-0 \
+    -n platform --ignore-not-found --wait=true --timeout=300s
+
+kubectl get namespace prefect >/dev/null 2>&1 && \
+  kubectl delete pvc mlruns-pvc \
+    -n prefect --ignore-not-found --wait=true --timeout=300s
+
+cd /home/wvsonp/Turbo-RAG/infra
+terraform plan -destroy -var-file=environments/dev.tfvars -target=module.gke
+terraform destroy -var-file=environments/dev.tfvars -target=module.gke
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+```

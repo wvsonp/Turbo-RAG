@@ -29,17 +29,19 @@ that are cheap to run or painful to recreate.
 
 ### What changes
 
-| Resource | Why |
-| -------- | --- |
-| Destroy: GKE cluster + node pools (`module.gke`) | Largest ongoing cost: fixed system nodes + application pool |
-| Optionally delete: Qdrant and MLflow PVC disks | Prevent orphan persistent disks from continuing to bill after cluster deletion |
-| Keep: network / VPC / PSA / NAT (`module.network`) | Peering and CIDR layout are tedious to rebuild |
-| Keep: Cloud SQL (`module.cloudsql`) | Databases, backups, IAM DB users |
-| Keep: Secret Manager (`module.secret_manager`) | Secret values are manual; containers + IAM are in Terraform |
-| Keep: Artifact Registry (`module.artifact_registry`) | Pushed service images |
-| Keep: GCS + Pub/Sub (`module.pubsub`) | Bucket objects and notification wiring |
-| Keep: Workload Identity (`module.iam`) | GCP SAs, WI bindings, Cloud SQL IAM users |
-| Keep: state bucket `gs://rag-platform-tf-state` | Bootstrap; always outside teardown |
+
+| Resource                                             | Why                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Destroy: GKE cluster + node pools (`module.gke`)     | Largest ongoing cost: fixed system nodes + application pool                    |
+| Optionally delete: Qdrant and MLflow PVC disks       | Prevent orphan persistent disks from continuing to bill after cluster deletion |
+| Keep: network / VPC / PSA / NAT (`module.network`)   | Peering and CIDR layout are tedious to rebuild                                 |
+| Keep: Cloud SQL (`module.cloudsql`)                  | Databases, backups, IAM DB users                                               |
+| Keep: Secret Manager (`module.secret_manager`)       | Secret values are manual; containers + IAM are in Terraform                    |
+| Keep: Artifact Registry (`module.artifact_registry`) | Pushed service images                                                          |
+| Keep: GCS + Pub/Sub (`module.pubsub`)                | Bucket objects and notification wiring                                         |
+| Keep: Workload Identity (`module.iam`)               | GCP SAs, WI bindings, Cloud SQL IAM users                                      |
+| Keep: state bucket `gs://rag-platform-tf-state`      | Bootstrap; always outside teardown                                             |
+
 
 Cloud SQL (`db-f1-micro`) still incurs a small monthly charge. Destroy it only
 if you also accept losing database data and re-running secret value setup; that
@@ -280,8 +282,205 @@ After GKE is back, use the later sections as checkpoints:
 3. Section 18: recreate the Qdrant hybrid collection, re-ingest sample data, and validate query retrieval.
 4. Continue with `docs/plan/phase-3-query-retrieval/3.3-reranker.md`.
 
-For a full platform teardown (all modules), see destroy order notes in
-`docs/history/IaC.md`, `docs/history/iam.md`, and `docs/history/cloudsql.md`.
+For maximum cost savings (all Terraform-managed resources), see **Cost control —
+destroy all GCP except GCS buckets** below.
+
+## Cost control — destroy all GCP except GCS buckets
+
+Use this when dev is idle for a long period and you want to stop **all**
+Terraform-managed spend while keeping uploaded documents and Terraform state.
+
+Prefer **destroy GKE only** above if you only need to pause cluster/node cost
+and can accept small ongoing charges for Cloud SQL and NAT.
+
+### What changes
+
+
+| Resource                                                        | Action              | Why                                                         |
+| --------------------------------------------------------------- | ------------------- | ----------------------------------------------------------- |
+| Keep: `gs://rag-platform-tf-state`                              | Do not delete       | Terraform backend; not managed by this config               |
+| Keep: `gs://rag-ingestion-dev`                                  | Do not delete       | Ingestion uploads and experiment inputs survive teardown    |
+| Destroy: GKE (`module.gke`)                                     | `terraform destroy` | Largest compute cost                                        |
+| Destroy: Cloud SQL (`module.cloudsql`)                          | `terraform destroy` | Instance + disk; data is lost                               |
+| Destroy: network / VPC / PSA / NAT (`module.network`)           | `terraform destroy` | NAT and peering bill while idle                             |
+| Destroy: Artifact Registry (`module.artifact_registry`)         | `terraform destroy` | Images must be rebuilt on restore                           |
+| Destroy: Secret Manager (`module.secret_manager`)               | `terraform destroy` | Containers + IAM gone; **secret values must be re-entered** |
+| Destroy: Pub/Sub + notification (`module.pubsub` except bucket) | `terraform destroy` | Topics/subs recreated on apply                              |
+| Destroy: Workload Identity (`module.iam`)                       | `terraform destroy` | GCP SAs and WI bindings recreated on apply                  |
+| Keep: GCP project + enabled APIs                                | No action           | Disabling APIs saves little and complicates restore         |
+
+
+**Data lost on full destroy:** Cloud SQL (`rag_metadata`, `prefect`, etc.),
+Qdrant vectors, MLflow PVC runs, Artifact Registry images, Secret Manager
+values, Pub/Sub in-flight messages. **Preserved:** objects in both GCS buckets
+above.
+
+The ingestion bucket is managed inside `module.pubsub`. A plain
+`terraform destroy` would delete it. Remove it from state **before** destroy,
+then **import** it before the next apply.
+
+### Destroy (preserve GCS buckets)
+
+Optional: scale down workloads and delete PVCs while the cluster still exists
+(same as GKE-only section) to avoid orphan disks after cluster deletion.
+
+**1. Authenticate**
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project turbo-rag
+gcloud config set compute/region us-central1
+```
+
+**2. Detach preserved resources from Terraform state**
+
+Remote state lives in `gs://rag-platform-tf-state` (kept during teardown; versioning
+enabled at bootstrap). Each `terraform state rm` / `destroy` writes back to that
+bucket — no local backup file is required.
+
+**Ingestion bucket** — otherwise `terraform destroy` deletes `gs://rag-ingestion-dev`.
+
+**Cloud SQL IAM users** — Prefect migrations and dev grants leave PostgreSQL
+objects owned by IAM roles. Terraform tries to delete those users before the
+instance; Cloud SQL returns `role ... cannot be dropped because some objects
+depend on it`. Remove the users from state only; destroying `module.cloudsql`
+removes the instance and all DB roles together.
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform validate
+
+terraform state show module.pubsub.google_storage_bucket.ingestion
+terraform state rm module.pubsub.google_storage_bucket.ingestion
+
+for svc in api ingestion query workers; do
+  terraform state rm "module.iam.google_sql_user.iam[\"${svc}\"]"
+done
+terraform state rm module.iam.google_sql_user.prefect_server_iam
+```
+
+**3. Preview and destroy everything else**
+
+The plan must **not** include `module.pubsub.google_storage_bucket.ingestion`.
+Pub/Sub topics, subscriptions, and the GCS notification are destroyed and
+recreated on restore.
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform plan -destroy -var-file=environments/dev.tfvars
+terraform destroy -var-file=environments/dev.tfvars
+```
+
+Cloud SQL `deletion_protection` is `false` in dev. GKE `deletion_protection`
+is `false` in dev.
+
+**4. Confirm only buckets remain**
+
+```bash
+gcloud storage buckets describe gs://rag-platform-tf-state --project=turbo-rag
+gcloud storage buckets describe gs://rag-ingestion-dev --project=turbo-rag
+gcloud storage ls gs://rag-ingestion-dev/ --project=turbo-rag
+
+gcloud container clusters list --project=turbo-rag
+# Expected: no rag-platform-dev cluster
+
+gcloud sql instances list --project=turbo-rag
+# Expected: empty
+
+gcloud pubsub topics list --project=turbo-rag
+gcloud pubsub subscriptions list --project=turbo-rag
+# Expected: empty (destroyed with module.pubsub)
+
+gcloud artifacts repositories list --location=us-central1 --project=turbo-rag
+# Expected: empty
+
+gcloud secrets list --project=turbo-rag
+# Expected: empty
+
+gcloud compute networks list --project=turbo-rag --filter='name:rag-platform-dev'
+# Expected: empty after network module destroy
+
+gcloud compute disks list \
+  --filter='name~"pvc-" AND -users:*' \
+  --format='table(name,zone,sizeGb,status,users)' \
+  --project=turbo-rag
+# Delete only disks you recognize as old dev PVCs
+```
+
+### Bring the full platform back
+
+After full destroy, follow **sections 0–18** below in order. This subsection
+lists Terraform-specific steps and Phase 3 differences from GKE-only restore.
+
+**1. Authenticate and verify kept buckets**
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project turbo-rag
+gcloud config set compute/region us-central1
+
+gcloud services enable \
+  container.googleapis.com \
+  compute.googleapis.com \
+  servicenetworking.googleapis.com \
+  sqladmin.googleapis.com \
+  pubsub.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
+  storage.googleapis.com \
+  aiplatform.googleapis.com \
+  --project=turbo-rag
+
+gcloud storage buckets describe gs://rag-platform-tf-state --project=turbo-rag
+gcloud storage buckets describe gs://rag-ingestion-dev --project=turbo-rag
+```
+
+**2. Import preserved ingestion bucket, then apply modules in dependency order**
+
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform validate
+terraform import -var-file=environments/dev.tfvars \
+  module.pubsub.google_storage_bucket.ingestion rag-ingestion-dev
+terraform apply -var-file=environments/dev.tfvars -target=module.network
+terraform apply -var-file=environments/dev.tfvars -target=module.artifact_registry
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+terraform apply -var-file=environments/dev.tfvars -target=module.secret_manager
+terraform apply -var-file=environments/dev.tfvars -target=module.pubsub
+terraform apply -var-file=environments/dev.tfvars -target=module.iam
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+terraform plan -var-file=environments/dev.tfvars
+```
+
+**3. Re-enter secret values (required — values are not in Terraform)**
+
+```bash
+echo -n 'your-dev-value' | gcloud secrets versions add openai-api-key \
+  --project=turbo-rag --data-file=-
+```
+
+**4. Rebuild and push service images (Artifact Registry was destroyed)**
+
+Section 10 below; use `--set "image.tag=${SHA}"` on Helm deploys in sections
+11–18.
+
+**5. Resume Phase 3 checkpoints**
+
+After sections 0–13 (infra, CSI, Helm, Qdrant, WI):
+
+1. Section 14: Prefect on GKE (includes one-time Cloud SQL grants for `prefect`).
+2. Section 15: register ingestion flow; redeploy ingestion/workers.
+3. Section 16: chunking experiments (optional; MLflow PVC is fresh).
+4. Section 18: recreate Qdrant hybrid collection, re-ingest from preserved GCS
+  objects, validate hybrid query.
+5. Continue with `docs/plan/phase-3-query-retrieval/3.3-reranker.md`.
+
+Destroy order background: `docs/history/IaC.md`, `docs/history/iam.md`,
+`docs/history/cloudsql.md`, `docs/history/pubsub.md`.
 
 ## 0. Assumptions
 
@@ -805,7 +1004,7 @@ Compare the three MLflow runs before switching to `recursive` or `semantic`.
 
 ### 2.5 DLQ + idempotency (deploy + validate)
 
-Rebuild and deploy ingestion + workers (see [`docs/history/ingestion.md`](docs/history/ingestion.md) § 2.5), then:
+Rebuild and deploy ingestion + workers (see `[docs/history/ingestion.md](docs/history/ingestion.md)` § 2.5), then:
 
 ```bash
 gcloud pubsub subscriptions describe ingestion-uploads-sub \
@@ -962,4 +1161,4 @@ PYTHONPATH=services/shared python3 -c "from rag_platform.rrf import reciprocal_r
 ```
 
 Then continue with
-[`docs/plan/phase-3-query-retrieval/3.3-reranker.md`](docs/plan/phase-3-query-retrieval/3.3-reranker.md).
+`[docs/plan/phase-3-query-retrieval/3.3-reranker.md](docs/plan/phase-3-query-retrieval/3.3-reranker.md)`.

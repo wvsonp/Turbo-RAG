@@ -77,3 +77,11 @@
 **What was tried:** `kubectl delete pvc qdrant-storage-qdrant-0 -n platform --ignore-not-found --wait=true --timeout=300s` and `kubectl delete pvc mlruns-pvc -n prefect --ignore-not-found --wait=true --timeout=300s`
 **Fix:** Stop the Qdrant StatefulSet before deleting its PVC (`kubectl scale statefulset qdrant -n platform --replicas=0`, wait for `pod/qdrant-0` deletion, then wait for the PVC delete); update `quick-dev-reset.md` so future GKE-only teardowns stop Qdrant before PVC cleanup.
 **Rule added:** _(none)_
+
+## [Phase 3] Full cost teardown — Cloud SQL IAM users cannot be dropped
+**Date:** 2026-06-01
+**What happened:** `terraform destroy` failed while deleting `module.iam.google_sql_user` resources because Prefect and ingestion had created PostgreSQL objects owned by those IAM roles.
+**Symptoms:** `role "workers-sa-dev@turbo-rag.iam" cannot be dropped because some objects depend on it` (rag_metadata); same for `prefect-server-sa-dev@turbo-rag.iam` (prefect, 44 objects).
+**What was tried:** Full `terraform destroy -var-file=environments/dev.tfvars` after `state rm` on ingestion bucket only.
+**Fix:** `terraform state rm` all five `google_sql_user` resources in `module.iam`, then re-run destroy; instance deletion removes DB roles without per-user drop.
+**Rule added:** _(none)_

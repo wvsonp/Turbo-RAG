@@ -119,3 +119,39 @@ terraform destroy -var-file=environments/dev.tfvars -target=module.gke
 ```
 
 **Bring back:** full copy-paste sequence in **Bring GKE back** under Cost control in `quick-dev-reset.md`.
+
+## 2026-06-01 — Full cost teardown (preserve GCS buckets)
+
+**What:** Added **Cost control — destroy all GCP except GCS buckets** to `quick-dev-reset.md`: `terraform state rm module.pubsub.google_storage_bucket.ingestion`, full `terraform destroy`, post-destroy verification, then `terraform import` + ordered module apply for restore. Documented data loss (Cloud SQL, secrets, images, Qdrant/MLflow PVCs) vs preserved GCS objects.
+
+**Why:** When dev is idle long-term, GKE-only teardown still bills Cloud SQL, NAT, and related infra. Full destroy stops nearly all spend while keeping uploaded documents and remote state for a repeatable Phase 3 rebuild.
+
+**Commands (destroy):**
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform init
+terraform state rm module.pubsub.google_storage_bucket.ingestion
+for svc in api ingestion query workers; do
+  terraform state rm "module.iam.google_sql_user.iam[\"${svc}\"]"
+done
+terraform state rm module.iam.google_sql_user.prefect_server_iam
+terraform plan -destroy -var-file=environments/dev.tfvars
+terraform destroy -var-file=environments/dev.tfvars
+```
+
+**Commands (restore — Terraform only; then sections 0–18 in quick-dev-reset.md):**
+```bash
+cd /home/wvsonp/Turbo-RAG/infra
+terraform import -var-file=environments/dev.tfvars \
+  module.pubsub.google_storage_bucket.ingestion rag-ingestion-dev
+terraform apply -var-file=environments/dev.tfvars -target=module.network
+terraform apply -var-file=environments/dev.tfvars -target=module.artifact_registry
+terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+terraform apply -var-file=environments/dev.tfvars -target=module.secret_manager
+terraform apply -var-file=environments/dev.tfvars -target=module.pubsub
+terraform apply -var-file=environments/dev.tfvars -target=module.iam
+terraform apply -var-file=environments/dev.tfvars -target=module.gke
+terraform plan -var-file=environments/dev.tfvars
+```
+
+**Bring back:** **Bring the full platform back** under full cost control in `quick-dev-reset.md`; re-add secret values, rebuild images, sections 14–18 for Prefect + hybrid re-ingest.

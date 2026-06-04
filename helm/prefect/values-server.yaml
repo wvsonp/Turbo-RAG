@@ -17,7 +17,9 @@ server:
     cloud.google.com/gke-nodepool: system
 
   uiConfig:
-    prefectUiApiUrl: "http://prefect-server.prefect.svc.cluster.local:4200/api"
+    # Relative URL so the UI works via port-forward (localhost:4200). In-cluster
+    # clients (ingestion dispatcher, workers) use PREFECT_API_URL, not this setting.
+    prefectUiApiUrl: "/api"
 
   extraInitContainers:
     - name: cloud-sql-proxy

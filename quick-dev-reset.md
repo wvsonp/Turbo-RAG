@@ -260,7 +260,7 @@ kubectl logs cloudsql-smoke
 kubectl delete pod cloudsql-smoke --ignore-not-found
 ```
 
-GCS list via ingestion WI:
+GCS list via ingestion WI (after section 11 — same commands as section 13):
 
 ```bash
 kubectl run wi-gcs-ingestion --restart=Never -n platform \
@@ -343,8 +343,7 @@ bucket — no local backup file is required.
 
 **Cloud SQL IAM users** — Prefect migrations and dev grants leave PostgreSQL
 objects owned by IAM roles. Terraform tries to delete those users before the
-instance; Cloud SQL returns `role ... cannot be dropped because some objects
-depend on it`. Remove the users from state only; destroying `module.cloudsql`
+instance; Cloud SQL returns `role ... cannot be dropped because some objects depend on it`. Remove the users from state only; destroying `module.cloudsql`
 removes the instance and all DB roles together.
 
 ```bash
@@ -565,7 +564,7 @@ terraform apply -var-file=environments/dev.tfvars -target=module.artifact_regist
 Then recreate Cloud SQL:
 
 ```bash
-terraform apply -var-file=environments/dev.tfvars -target=module.cloudsql
+
 ```
 
 Finally run a full plan to confirm no remaining drift:
@@ -684,7 +683,9 @@ Apply Pub/Sub resources first, then IAM ingestion bindings (root passes bucket/s
 ```bash
 cd /home/wvsonp/Turbo-RAG/infra
 terraform apply -var-file=environments/dev.tfvars -target=module.pubsub -target=module.iam
-terraform output ingestion_bucket_name ingestion_subscription_name iam_service_account_emails
+terraform output ingestion_bucket_name
+terraform output ingestion_subscription_name
+terraform output iam_service_account_emails
 ```
 
 Validate upload → Pub/Sub (use test sub for `--auto-ack`; never on main sub once dispatcher is deployed):
@@ -707,18 +708,8 @@ gcloud pubsub subscriptions describe ingestion-uploads-sub \
 # Expected: 600
 ```
 
-WI proof (ingestion KSA lists bucket):
-
-```bash
-kubectl run wi-gcs-ingestion --restart=Never -n platform \
-  --image=google/cloud-sdk:slim \
-  --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
-  -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
-kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
-  pod/wi-gcs-ingestion -n platform --timeout=120s
-kubectl logs wi-gcs-ingestion -n platform
-kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
-```
+GCS Workload Identity proof (ingestion KSA lists bucket) is in **section 13** — it needs the
+`platform` namespace and Helm-created `ingestion` service account from **section 11**.
 
 ## 9c. Workload Identity (base bindings)
 
@@ -810,6 +801,19 @@ kubectl run wi-secret-test --restart=Never -n platform \
 kubectl wait --for=condition=ready pod/wi-secret-test -n platform --timeout=90s
 kubectl logs wi-secret-test -n platform
 kubectl delete pod wi-secret-test -n platform
+```
+
+Ingestion WI → GCS bucket list (requires `module.iam` ingestion bucket IAM from section 9b):
+
+```bash
+kubectl run wi-gcs-ingestion --restart=Never -n platform \
+  --image=google/cloud-sdk:slim \
+  --overrides='{"spec":{"serviceAccountName":"ingestion"}}' \
+  -- gcloud storage ls gs://rag-ingestion-dev/incoming/ --project=turbo-rag
+kubectl wait --for=jsonpath='{.status.containerStatuses[0].state.terminated.reason}'=Completed \
+  pod/wi-gcs-ingestion -n platform --timeout=120s
+kubectl logs wi-gcs-ingestion -n platform
+kubectl delete pod wi-gcs-ingestion -n platform --ignore-not-found
 ```
 
 Then continue with section 14 (Prefect on GKE).

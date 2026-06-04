@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated:** 2026-06-01 (README public overview refresh)  
+**Last updated:** 2026-06-04 (first-time install guide)  
 **Current phase:** 3 — Query & retrieval  
 **Roadmap:** [`docs/project-roadmap.md`](project-roadmap.md)  
 **Step plans:** [`docs/plan/`](plan/README.md) (acceptance criteria per sub-step)
@@ -37,6 +37,7 @@
 - **Quick dev reset — GKE-only cost path cleanup** — Clarified the targeted `module.gke` destroy/restore path, Qdrant scale-down before PVC disk cleanup, stale image rebuild command, and Phase 3 resume checkpoints in [`quick-dev-reset.md`](../quick-dev-reset.md); added GKE/history lesson notes
 - **Quick dev reset — full cost teardown** — Added **Cost control — destroy all GCP except GCS buckets** to [`quick-dev-reset.md`](../quick-dev-reset.md): `terraform state rm` / `import` for `rag-ingestion-dev`, `state rm` for Cloud SQL IAM users before destroy, full destroy/restore commands, post-destroy checks, and Phase 3 resume path
 - **README public overview refresh** — Reworked [`README.md`](../README.md) for a public GitHub branch with a clearer introduction, current implementation state, technology stack, platform flow, design decisions, repository map, and detailed progress tables
+- **First-time install guide** — Added root [`install_guide.md`](../install_guide.md): clean linear bring-up for §12 onward (Qdrant → Prefect → ingestion → optional chunking → hybrid query). Removes recovery-runbook cruft (build images once, single full `terraform apply`, no targeted re-applies, no collection drop, no query skeleton step); bakes in `FAILURES.md` gotchas (Qdrant snapshot path, ingestion dispatcher rollout after Prefect, repo-root Dockerfile path) and replaces the hardcoded bootstrap password / `sleep` hacks with a prompted secret and `prefect deployment run --watch`
 
 ## In progress
 
